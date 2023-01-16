@@ -326,7 +326,7 @@ func GetContextLogger(ctx context.Context, options ...Option) log.Logger {
 	for _, option := range options {
 		l = option(l)
 	}
-	return log.With(l)
+	return l
 }
 
 type Option func(l log.Logger) log.Logger
