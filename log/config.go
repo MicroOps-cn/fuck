@@ -104,11 +104,6 @@ func GetRegisteredLogFormats() []AllowedFormat {
 	return fmts
 }
 
-func init() {
-	RegisterLogFormat(FormatLogfmt, log.NewLogfmtLogger)
-	RegisterLogFormat(FormatJSON, log.NewJSONLogger)
-}
-
 // AllowedFormat is a settable identifier for the output format that the logger can have.
 type AllowedFormat string
 
@@ -158,4 +153,12 @@ func MustNewConfig(level string, format string) *Config {
 		panic(err)
 	}
 	return cfg
+}
+
+var DefaultLoggerConfig *Config
+
+func init() {
+	RegisterLogFormat(FormatLogfmt, log.NewLogfmtLogger)
+	RegisterLogFormat(FormatJSON, log.NewJSONLogger)
+	DefaultLoggerConfig = MustNewConfig("info", "logfmt")
 }

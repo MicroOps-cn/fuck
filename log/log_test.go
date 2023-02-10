@@ -27,7 +27,7 @@ import (
 // Make sure creating and using a testLogger with an empty configuration doesn't
 // result in a panic.
 func TestDefaultConfig(t *testing.T) {
-	testLogger := New(&Config{})
+	testLogger := New()
 	if err := testLogger.Log("hello", "world"); err != nil {
 		t.Fatal(err)
 	}

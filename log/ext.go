@@ -36,6 +36,15 @@ type extLogger struct {
 	w      io.Writer
 }
 
+func writeln(w io.Writer, v []byte) {
+	if len(v) > 0 {
+		_, _ = w.Write(v)
+		if v[len(v)-1] != '\n' {
+			_, _ = w.Write([]byte{'\n'})
+		}
+	}
+}
+
 func (l extLogger) Log(keyvals ...interface{}) error {
 	if len(keyvals)%2 != 0 {
 		keyvals = append(keyvals, log.ErrMissingValue)
@@ -54,21 +63,15 @@ func (l extLogger) Log(keyvals ...interface{}) error {
 	}
 	defer func() {
 		for _, value := range values {
-			if s, ok := value.(string); ok && len(s) > 0 {
-				_, _ = l.w.Write([]byte(s))
-				if s[len(s)-1] != '\n' {
-					_, _ = l.w.Write([]byte{'\n'})
+			switch v := value.(type) {
+			case string:
+				writeln(l.w, []byte(v))
+			case fmt.Stringer:
+				writeln(l.w, []byte(v.String()))
+			default:
+				if value != nil {
+					writeln(l.w, []byte(fmt.Sprintf("%#v", value)))
 				}
-			} else if str, ok := value.(fmt.Stringer); ok {
-				s = str.String()
-				if len(s) > 0 {
-					_, _ = l.w.Write([]byte(s))
-					if s[len(s)-1] != '\n' {
-						_, _ = l.w.Write([]byte{'\n'})
-					}
-				}
-			} else if value != nil {
-				_, _ = fmt.Fprintf(l.w, "%#v\n", value)
 			}
 		}
 	}()

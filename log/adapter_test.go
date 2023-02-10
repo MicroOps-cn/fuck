@@ -26,7 +26,7 @@ import (
 
 func TestAdapterMessageKey(t *testing.T) {
 	var w bytes.Buffer
-	testLogger := New(&Config{}, WithWriter(&w))
+	testLogger := New(WithWriter(&w))
 	{
 		_, err := NewWriterAdapter(testLogger, MessageKey("qwerty")).Write([]byte("zxcv"))
 		require.NoError(t, err)
@@ -54,7 +54,7 @@ func TestAdapterPrefix(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var w bytes.Buffer
-			testLogger := New(&Config{}, WithWriter(&w))
+			testLogger := New(WithWriter(&w))
 			_, err := NewWriterAdapter(testLogger, Prefix(tt.args.prefix, tt.args.joinPrefixToMsg)).Write([]byte(tt.args.msg))
 			require.NoError(t, err)
 			ok := strings.HasSuffix(w.String(), tt.wantOutputLogSuffix)

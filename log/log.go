@@ -24,6 +24,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-kit/log"
@@ -124,15 +125,15 @@ func newWriterFromConfig(c Config) io.Writer {
 
 // New returns a new leveled oklog logger. Each logged line will be annotated
 // with a timestamp. The output always goes to stderr.
-func New(config *Config, opts ...NewLoggerOption) log.Logger {
+func New(opts ...NewLoggerOption) log.Logger {
 	o := newLoggerOptions{}
 	for _, opt := range opts {
 		opt(&o)
 	}
-
+	config := o.config
 	var l log.Logger
 	if config == nil {
-		config = MustNewConfig("info", "logfmt")
+		config = DefaultLoggerConfig
 	}
 	if config.Format == nil {
 		config.Format = w.P[AllowedFormat](FormatLogfmt)
@@ -162,6 +163,7 @@ func New(config *Config, opts ...NewLoggerOption) log.Logger {
 	return l
 }
 
+var rootLoggerOnce sync.Once
 var rootLogger log.Logger
 
 // SetDefaultLogger
@@ -179,15 +181,12 @@ func SetDefaultLogger(logger log.Logger) {
 //	@Description[zh-CN]: 获取默认的Logger
 //	@return log.Logger
 func GetDefaultLogger() log.Logger {
-	if rootLogger == nil {
-		panic("root logger is uninitialized")
-	}
+	rootLoggerOnce.Do(func() {
+		if rootLogger == nil {
+			rootLogger = New()
+		}
+	})
 	return rootLogger
-}
-
-var DefaultLoggerConfig = &Config{
-	Level:  w.P[AllowedLevel]("info"),
-	Format: w.P[AllowedFormat]("logfmt"),
 }
 
 type NewLoggerOption func(*newLoggerOptions)
@@ -228,6 +227,12 @@ func WithWriter(w io.Writer) NewLoggerOption {
 	}
 }
 
+func WithConfig(c *Config) NewLoggerOption {
+	return func(o *newLoggerOptions) {
+		o.config = c
+	}
+}
+
 func WithKeyValues(keyvals ...interface{}) NewLoggerOption {
 	return func(o *newLoggerOptions) {
 		o.kvs = keyvals
@@ -239,6 +244,7 @@ type newLoggerOptions struct {
 	l       log.Logger
 	w       io.Writer
 	kvs     []interface{}
+	config  *Config
 }
 
 // NewTraceLogger
@@ -253,7 +259,7 @@ func NewTraceLogger(options ...NewLoggerOption) log.Logger {
 		f(&o)
 	}
 	if o.l == nil {
-		return log.With(New(DefaultLoggerConfig), TraceIdName, o.traceId)
+		return log.With(GetDefaultLogger(), TraceIdName, o.traceId)
 	}
 	if len(o.kvs) != 0 {
 		o.l = log.With(o.l, o.kvs...)

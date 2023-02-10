@@ -27,7 +27,7 @@ import (
 
 func TestWithPrint(t *testing.T) {
 	var w bytes.Buffer
-	testLogger := New(&Config{}, WithWriter(&w))
+	testLogger := New(WithWriter(&w))
 	{
 		withPrintLogger := WithPrint("Hello1")(testLogger)
 		withPrintLogger = WithPrint("Hello2")(withPrintLogger)

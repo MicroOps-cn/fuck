@@ -47,6 +47,9 @@ type FlagSet interface {
 // AddFlags adds the flags used by this package to the Kingpin application.
 // To use the default Kingpin application, call AddFlags(kingpin.CommandLine)
 func AddFlags(set FlagSet, config *log.Config) {
+	if config == nil {
+		config = log.DefaultLoggerConfig
+	}
 	config.Level = new(log.AllowedLevel)
 	set.StringVar((*string)(config.Level), LevelFlagName, string(log.LevelInfo), LevelFlagHelp)
 	config.Format = new(log.AllowedFormat)
