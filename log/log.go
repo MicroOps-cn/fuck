@@ -44,8 +44,15 @@ var TimestampFormat = log.TimestampFormat(
 	"2006-01-02T15:04:05.000Z07:00",
 )
 
+type callerName struct{}
+
+func (callerName) String() string {
+	return "caller"
+}
+
+var CallerName = callerName{}
+
 const (
-	CallerName  = "caller"
 	TraceIdName = "traceId"
 )
 

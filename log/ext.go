@@ -50,11 +50,20 @@ func (l extLogger) Log(keyvals ...interface{}) error {
 		keyvals = append(keyvals, log.ErrMissingValue)
 	}
 	var values []interface{}
-
+	callerIndex := -1
 	for i := 0; i < len(keyvals); {
 		key := keyvals[i]
 		val := keyvals[i+1]
-		if _, ok := key.(withPrint); ok {
+		switch key.(type) {
+		case callerName:
+			if callerIndex < 0 {
+				callerIndex = i
+			} else {
+				keyvals[callerIndex+1] = val
+				keyvals = append(keyvals[:i], keyvals[i+2:]...)
+				continue
+			}
+		case withPrint:
 			values = append(values, val)
 			keyvals = append(keyvals[:i], keyvals[i+2:]...)
 			continue
@@ -75,5 +84,6 @@ func (l extLogger) Log(keyvals ...interface{}) error {
 			}
 		}
 	}()
+
 	return l.logger.Log(keyvals...)
 }
