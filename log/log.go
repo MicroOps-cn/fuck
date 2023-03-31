@@ -157,11 +157,11 @@ func New(opts ...NewLoggerOption) log.Logger {
 			l = createFunc(o.w)
 		} else {
 			l = log.NewLogfmtLogger(o.w)
-			level.Warn(l).Log("msg", fmt.Errorf("log output format %s is not registered, using logfmt", *config.Format))
+			_ = level.Warn(l).Log("msg", fmt.Errorf("log output format %s is not registered, using logfmt", *config.Format))
 		}
 	} else {
 		l = log.NewLogfmtLogger(o.w)
-		level.Warn(l).Log("msg", fmt.Errorf("log output format %s is not registered, using logfmt", *config.Format))
+		_ = level.Warn(l).Log("msg", fmt.Errorf("log output format %s is not registered, using logfmt", *config.Format))
 	}
 	if config.Level != nil {
 		l = level.NewFilter(l, config.Level.getOption())
@@ -170,8 +170,10 @@ func New(opts ...NewLoggerOption) log.Logger {
 	return l
 }
 
-var rootLoggerOnce sync.Once
-var rootLogger log.Logger
+var (
+	rootLoggerOnce sync.Once
+	rootLogger     log.Logger
+)
 
 // SetDefaultLogger
 //

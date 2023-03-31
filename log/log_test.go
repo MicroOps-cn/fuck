@@ -17,6 +17,7 @@
 package log
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -97,4 +98,13 @@ func TestGetSourceCodeDir(t *testing.T) {
 	require.Equal(t, sourceDir, "/")
 	SetSourceCodeDir(GetSourceCodeDir("log/log_test.go"))
 	require.Equal(t, sourceDir, GetSourceCodeDir("log/log_test.go"))
+}
+
+func TestNewTraceLogger(t *testing.T) {
+	testLogger := New()
+	ctx := context.Background()
+	ctx, testTraceLogger := NewContextLogger(ctx, WithLogger(testLogger))
+	require.NotNil(t, testTraceLogger)
+	traceId := GetContextLogger(ctx)
+	require.NotEmpty(t, traceId)
 }
