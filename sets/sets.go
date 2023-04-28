@@ -19,8 +19,11 @@ limitations under the License.
 package sets
 
 import (
+	"encoding/json"
 	"fmt"
+	"net"
 	"sort"
+	"strings"
 )
 
 type Comparable interface {
@@ -234,4 +237,33 @@ func (s sortableSet[T]) List() []T {
 		res[idx] = item.item
 	}
 	return res
+}
+
+type IPNet struct {
+	*net.IPNet
+	raw string
+}
+
+func (n *IPNet) UnmarshalJSON(raw []byte) (err error) {
+	if err = json.Unmarshal(raw, &n.raw); err != nil {
+		return err
+	}
+	if !strings.ContainsRune(n.raw, '/') {
+		n.raw = n.raw + "/32"
+	}
+	if _, n.IPNet, err = net.ParseCIDR(n.raw); err != nil {
+		return err
+	}
+	return nil
+}
+
+type IPNets []IPNet
+
+func (s IPNets) Contains(ip net.IP) bool {
+	for _, ipNet := range s {
+		if ipNet.IPNet.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
