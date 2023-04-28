@@ -54,7 +54,7 @@ func AddFlags(set FlagSet, config *log.Config) {
 	set.StringVar((*string)(config.Level), LevelFlagName, string(log.LevelInfo), LevelFlagHelp)
 	config.Format = new(log.AllowedFormat)
 	set.StringVar((*string)(config.Format), FormatFlagName, string(log.FormatLogfmt), FormatFlagHelp())
-	set.StringVar(&config.FilePath, "log.file", "/dev/stdout", "The file path used to store logs.")
+	set.StringVar(&config.FilePath, "log.file", "/dev/stderr", "The file path used to store logs.")
 	set.DurationVar(&config.FileRotationTime, "log.file-rotation-time", time.Hour*24, "Rotation cycle of log file")
 	set.DurationVar(&config.FileMaxAge, "log.file-max-age", time.Hour*24*7, "Maximum retention time of log files")
 	set.StringVar(&config.FileRotationSize, "log.file-rotation-size", "100m", "Rotation size of log file")
