@@ -16,6 +16,15 @@
 
 package http
 
+import (
+	"fmt"
+	"net"
+	"net/http"
+	"strings"
+
+	"github.com/MicroOps-cn/fuck/sets"
+)
+
 func joinPath(a, b string) string {
 	if len(a) == 0 {
 		a = "/"
@@ -45,4 +54,20 @@ func JoinPath(p ...string) string {
 		ret = joinPath(ret, p[i])
 	}
 	return ret
+}
+
+func GetRemoteAddr(r *http.Request, trustIp sets.IPNets) string {
+	remoteAddr, _, _ := strings.Cut(r.RemoteAddr, ":")
+	ipSet := []string{remoteAddr}
+	ipSet = append(ipSet, strings.Split(r.Header.Get("X-Forwarded-For"), ",")...)
+	for i := len(ipSet) - 1; i > 0; i-- {
+		fmt.Println(ipSet[i], net.ParseIP(ipSet[i]))
+		if ip := net.ParseIP(ipSet[i]); ip != nil {
+			if trustIp.Contains(ip) || !ip.IsGlobalUnicast() || ip.IsPrivate() {
+				continue
+			}
+			return ipSet[i]
+		}
+	}
+	return remoteAddr
 }

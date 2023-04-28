@@ -16,7 +16,11 @@
 
 package http
 
-import "testing"
+import (
+	"fmt"
+	"net"
+	"testing"
+)
 
 func TestJoinPath(t *testing.T) {
 	tests := []struct {
@@ -51,4 +55,8 @@ func TestJoinPath(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetRemoteAddr(t *testing.T) {
+	fmt.Println(net.ParseIP("99.999.999.9999"))
 }
