@@ -30,9 +30,9 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
-	uuid "github.com/satori/go.uuid"
 
 	"github.com/MicroOps-cn/fuck/capacity"
+	"github.com/MicroOps-cn/fuck/generator"
 	w "github.com/MicroOps-cn/fuck/wrapper"
 )
 
@@ -283,7 +283,7 @@ func NewTraceLogger(options ...NewLoggerOption) log.Logger {
 //	@Description[zh-CN]: 生成一个跟踪ID
 //	@return string
 func NewTraceId() string {
-	return strings.ReplaceAll(uuid.NewV4().String(), "-", "")
+	return g.NewId("logging")
 }
 
 // GetTraceId
