@@ -293,7 +293,11 @@ func NewTraceId() string {
 //	@param ctx 	context.Context
 //	@return string
 func GetTraceId(ctx context.Context) string {
-	return ctx.Value(contextTraceId{}).(string)
+	s, _ := ctx.Value(contextTraceId{}).(string)
+	if len(s) == 0 {
+		return NewTraceId()
+	}
+	return s
 }
 
 type contextTraceId struct{}
