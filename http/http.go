@@ -17,7 +17,6 @@
 package http
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -61,7 +60,6 @@ func GetRemoteAddr(r *http.Request, trustIp sets.IPNets) string {
 	ipSet := []string{remoteAddr}
 	ipSet = append(ipSet, strings.Split(r.Header.Get("X-Forwarded-For"), ",")...)
 	for i := len(ipSet) - 1; i > 0; i-- {
-		fmt.Println(ipSet[i], net.ParseIP(ipSet[i]))
 		if ip := net.ParseIP(ipSet[i]); ip != nil {
 			if trustIp.Contains(ip) || !ip.IsGlobalUnicast() || ip.IsPrivate() {
 				continue

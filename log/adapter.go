@@ -31,7 +31,7 @@ type WriterAdapter struct {
 }
 
 func (a WriterAdapter) Write(p []byte) (n int, err error) {
-	a.l.Log(a.msgKey, a.handleMessagePrefix(string(p)))
+	a.l.Log(a.msgKey, a.handleMessagePrefix(strings.TrimSuffix(string(p), "\n")))
 	return len(p), nil
 }
 
