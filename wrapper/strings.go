@@ -29,3 +29,7 @@ func (s Stringer) String() string {
 func NewStringer(stringer func() string) fmt.Stringer {
 	return &Stringer{stringer}
 }
+
+func StringEqual(a, b string) bool {
+	return a == b
+}
