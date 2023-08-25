@@ -19,11 +19,16 @@ package w
 import (
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	htmlTemplate "html/template"
 	"io"
 	"path/filepath"
+	"regexp"
+	"strings"
 	textTemplate "text/template"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+	"gopkg.in/yaml.v3"
 )
 
 type TemplateHandler interface {
@@ -45,33 +50,28 @@ func (t Template) MarshalYAML() (interface{}, error) {
 
 func (t *Template) parseTextTemplate(raw string) (err error) {
 	t.htmlTmpl = nil
-	if t.textTmpl == nil {
-		t.textTmpl = textTemplate.New("root")
-	}
+	t.textTmpl = textTemplate.New("root").Funcs(funcMaps)
 	t.textTmpl, err = t.textTmpl.Parse(raw)
 	return err
 }
 
 func (t *Template) parseTextFileTemplate(filename string) (err error) {
 	t.htmlTmpl = nil
-	t.textTmpl = textTemplate.New(filepath.Base(filename))
+	t.textTmpl = textTemplate.New(filepath.Base(filename)).Funcs(funcMaps)
 	t.textTmpl, err = t.textTmpl.ParseFiles(filename)
 	return err
 }
 
 func (t *Template) parseHtmlFileTemplate(filename string) (err error) {
 	t.textTmpl = nil
-	t.htmlTmpl = htmlTemplate.New(filepath.Base(filename))
-
+	t.htmlTmpl = htmlTemplate.New(filepath.Base(filename)).Funcs(funcMaps)
 	t.htmlTmpl, err = t.htmlTmpl.ParseFiles(filename)
 	return err
 }
 
 func (t *Template) parseHtmlTemplate(raw string) (err error) {
 	t.textTmpl = nil
-	if t.htmlTmpl == nil {
-		t.htmlTmpl = htmlTemplate.New("root")
-	}
+	t.htmlTmpl = htmlTemplate.New("root").Funcs(funcMaps)
 	t.htmlTmpl, err = t.htmlTmpl.Parse(raw)
 	return err
 }
@@ -113,6 +113,58 @@ func (t *Template) UnmarshalYAML(value *yaml.Node) (err error) {
 
 func (t Template) MarshalJSON() ([]byte, error) {
 	return []byte(t.raw), nil
+}
+
+var defaultFuncs = textTemplate.FuncMap{
+	"toUpper": strings.ToUpper,
+	"toLower": strings.ToLower,
+	"add":     func(a, b int) int { return a + b },
+	"sub":     func(a, b int) int { return a - b },
+	"title":   cases.Title(language.AmericanEnglish).String,
+	// join is equal to strings.Join but inverts the argument order
+	// for easier pipelining in templates.
+	"join": func(sep string, s []string) string {
+		return strings.Join(s, sep)
+	},
+	"match": regexp.MatchString,
+	"safeHtml": func(text string) htmlTemplate.HTML {
+		return htmlTemplate.HTML(text)
+	},
+	"reReplaceAll": func(pattern, repl, text string) string {
+		re := regexp.MustCompile(pattern)
+		return re.ReplaceAllString(text, repl)
+	},
+	"stringSlice": func(s ...string) []string {
+		return s
+	},
+	"toMap": func(s string) map[string]string {
+		m := make(map[string]string)
+		if err := json.Unmarshal([]byte(s), &m); err != nil {
+			panic(err)
+		} else {
+			return m
+		}
+	},
+	"toJson": func(o interface{}) string {
+		data, _ := json.Marshal(o)
+		return string(data)
+	},
+	"safeJson": func(o interface{}) string {
+		data, _ := json.Marshal(o)
+		return strings.Trim(string(data), "\"")
+	},
+}
+
+var funcMaps = textTemplate.FuncMap{}
+
+func AddFuncMaps(funcName string, f interface{}) {
+	funcMaps[funcName] = f
+}
+
+func init() {
+	for name, f := range defaultFuncs {
+		AddFuncMaps(name, f)
+	}
 }
 
 func (t *Template) UnmarshalJSON(data []byte) (err error) {

@@ -20,10 +20,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestTemplate_UnmarshalYAML(t1 *testing.T) {
@@ -50,8 +51,8 @@ func TestTemplate_UnmarshalYAML(t1 *testing.T) {
 	}{{
 		name:   "simple text template",
 		config: config{},
-		args:   args{value: "template: 'hello {{.text}}'", data: map[string]string{"text": "world"}},
-		want:   "hello world",
+		args:   args{value: "template: 'hello {{.text|toJson}}'", data: map[string]string{"text": "world"}},
+		want:   "hello \"world\"",
 	}, {
 		name:   "text template",
 		config: config{},
