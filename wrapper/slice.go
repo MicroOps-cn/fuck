@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"strings"
 )
 
@@ -132,4 +133,82 @@ func Limit[T any](s []T, limit int, hidePosition int, manySuffix ...T) []T {
 		}
 	}
 	return s
+}
+
+// OneOrMore represents a value that can either be a string
+// or an array of strings. Mainly here for serialization purposes
+type OneOrMore[T comparable] []T
+
+func (s OneOrMore[T]) MarshalYAML() (interface{}, error) {
+	if len(s) == 1 {
+		return (s)[0], nil
+	}
+	return []T(s), nil
+
+}
+
+func (s *OneOrMore[T]) UnmarshalYAML(value *yaml.Node) error {
+	fmt.Println(">>>>>", value.Tag, value.Kind)
+	switch value.Kind {
+	case yaml.SequenceNode:
+		type plain []T
+		return value.Decode((*plain)(s))
+	case yaml.ScalarNode:
+		var c T
+		if err := value.Decode(&c); err != nil {
+			return err
+		}
+		*s = OneOrMore[T]{c}
+		return nil
+	case yaml.AliasNode:
+		return value.Alias.Decode(s)
+	}
+	return fmt.Errorf("unknown value type: %s", value.Tag)
+}
+
+// Contains returns true when the value is contained in the slice
+func (s OneOrMore[T]) Contains(value T) bool {
+	for _, str := range s {
+		if str == value {
+			return true
+		}
+	}
+	return false
+}
+
+// UnmarshalJSON unmarshals this string or array object from a JSON array or signal JSON value
+func (s *OneOrMore[T]) UnmarshalJSON(data []byte) error {
+	var first byte
+	if len(data) > 1 {
+		first = data[0]
+	}
+
+	if first == '[' {
+		var parsed []T
+		if err := json.Unmarshal(data, &parsed); err != nil {
+			return err
+		}
+		*s = OneOrMore[T](parsed)
+		return nil
+	}
+
+	var single T
+	if err := json.Unmarshal(data, &single); err != nil {
+		return err
+	}
+	switch v := interface{}(single).(type) {
+	case T:
+		*s = OneOrMore[T]([]T{v})
+		return nil
+	default:
+		return fmt.Errorf("only string or array is allowed, not %T", single)
+	}
+}
+
+// MarshalJSON converts this string or array to a JSON array or JSON string
+func (s OneOrMore[T]) MarshalJSON() ([]byte, error) {
+	if len(s) == 1 {
+		return json.Marshal(s[0])
+	}
+	return json.Marshal([]T(s))
 }

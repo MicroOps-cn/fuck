@@ -19,6 +19,8 @@
 package w
 
 import (
+	"encoding/json"
+	"gopkg.in/yaml.v3"
 	"reflect"
 	"strconv"
 	"testing"
@@ -289,6 +291,140 @@ func TestLimit(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("old data = %v, want %v", string(oldData), string(tt.args.s))
+			}
+		})
+	}
+}
+
+func TestOneOrMoreStringYamlUnmarshal(t *testing.T) {
+	type args struct {
+		value string
+		obj   OneOrMore[string]
+	}
+	tests := []struct {
+		name      string
+		args      args
+		wantError bool
+		want      OneOrMore[string]
+		wantValue string
+	}{
+		{name: "int string", args: args{value: "123", obj: OneOrMore[string]{}}, want: OneOrMore[string]{"123"}, wantValue: "\"123\"\n"},
+		{name: "string", args: args{value: "hello go", obj: OneOrMore[string]{}}, want: OneOrMore[string]{"hello go"}, wantValue: "hello go\n"},
+		{name: "strings", args: args{value: "- 123\n- 'hello'", obj: OneOrMore[string]{}}, want: OneOrMore[string]{"123", "hello"}, wantValue: "- \"123\"\n- hello\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := yaml.Unmarshal([]byte(tt.args.value), &tt.args.obj)
+			if err != nil && !tt.wantError {
+				require.NoErrorf(t, err, "yaml.Unmarshal failed")
+			}
+			require.Equal(t, tt.want, tt.args.obj)
+			data, err := yaml.Marshal(tt.args.obj)
+			if err != nil && !tt.wantError {
+				require.NoErrorf(t, err, "yaml.Marshal failed")
+			}
+			require.Equal(t, tt.wantValue, string(data))
+		})
+	}
+}
+
+func TestOneOrMoreInt64YamlUnmarshal(t *testing.T) {
+	type args struct {
+		value string
+		obj   OneOrMore[int64]
+	}
+	tests := []struct {
+		name      string
+		args      args
+		wantError bool
+		want      OneOrMore[int64]
+		wantValue string
+	}{
+		{name: "int64", args: args{value: "123", obj: OneOrMore[int64]{}}, want: OneOrMore[int64]{123}, wantValue: "123\n"},
+		{name: "int64s", args: args{value: "- 123\n- 456", obj: OneOrMore[int64]{}}, want: OneOrMore[int64]{123, 456}, wantValue: "- 123\n- 456\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := yaml.Unmarshal([]byte(tt.args.value), &tt.args.obj)
+			if err != nil && !tt.wantError {
+				require.NoErrorf(t, err, "yaml.Unmarshal failed")
+			}
+			require.Equal(t, tt.want, tt.args.obj)
+			data, err := yaml.Marshal(tt.args.obj)
+			if err != nil && !tt.wantError {
+				require.NoErrorf(t, err, "yaml.Marshal failed")
+			}
+			require.Equal(t, tt.wantValue, string(data))
+		})
+	}
+}
+
+func TestOneOrMoreStringJSONUnmarshal(t *testing.T) {
+	type args struct {
+		value string
+		obj   OneOrMore[string]
+	}
+	tests := []struct {
+		name      string
+		args      args
+		wantError bool
+		want      OneOrMore[string]
+		wantValue string
+	}{
+		{name: "int string", args: args{value: `"123"`, obj: OneOrMore[string]{}}, want: OneOrMore[string]{"123"}},
+		{name: "string", args: args{value: `"hello go"`, obj: OneOrMore[string]{}}, want: OneOrMore[string]{"hello go"}},
+		{name: "strings", args: args{value: `["123","hello"]`, obj: OneOrMore[string]{}}, want: OneOrMore[string]{"123", "hello"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := json.Unmarshal([]byte(tt.args.value), &tt.args.obj)
+			if err != nil && !tt.wantError {
+				require.NoErrorf(t, err, "yaml.Unmarshal failed")
+			}
+			require.Equal(t, tt.want, tt.args.obj)
+			data, err := json.Marshal(tt.args.obj)
+			if err != nil && !tt.wantError {
+				require.NoErrorf(t, err, "yaml.Marshal failed")
+			}
+			if len(tt.wantValue) != 0 {
+				require.Equal(t, tt.wantValue, string(data))
+			} else {
+				require.Equal(t, tt.args.value, string(data))
+			}
+		})
+	}
+}
+
+func TestOneOrMoreInt64JSONUnmarshal(t *testing.T) {
+	type args struct {
+		value string
+		obj   OneOrMore[int64]
+	}
+	tests := []struct {
+		name      string
+		args      args
+		wantError bool
+		want      OneOrMore[int64]
+		wantValue string
+	}{
+		{name: "int64", args: args{value: "123", obj: OneOrMore[int64]{}}, want: OneOrMore[int64]{123}},
+		{name: "int64s", args: args{value: "[123,456]", obj: OneOrMore[int64]{}}, want: OneOrMore[int64]{123, 456}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := json.Unmarshal([]byte(tt.args.value), &tt.args.obj)
+			if err != nil && !tt.wantError {
+				require.NoErrorf(t, err, "yaml.Unmarshal failed")
+			}
+			require.Equal(t, tt.want, tt.args.obj)
+			data, err := json.Marshal(tt.args.obj)
+			if err != nil && !tt.wantError {
+				require.NoErrorf(t, err, "yaml.Marshal failed")
+			}
+			if len(tt.wantValue) != 0 {
+				require.Equal(t, tt.wantValue, string(data))
+			} else {
+				require.Equal(t, tt.args.value, string(data))
 			}
 		})
 	}
