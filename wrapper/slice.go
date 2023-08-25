@@ -148,7 +148,6 @@ func (s OneOrMore[T]) MarshalYAML() (interface{}, error) {
 }
 
 func (s *OneOrMore[T]) UnmarshalYAML(value *yaml.Node) error {
-	fmt.Println(">>>>>", value.Tag, value.Kind)
 	switch value.Kind {
 	case yaml.SequenceNode:
 		type plain []T
