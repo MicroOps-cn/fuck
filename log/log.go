@@ -380,3 +380,13 @@ func WithMethod(skip ...int) Option {
 		return log.With(l, "method", funcName[len(funcName)-1])
 	}
 }
+
+type KeyName string
+
+func (n KeyName) String() string {
+	return string(n)
+}
+
+func WrapKeyName(name string) fmt.Stringer {
+	return KeyName(name)
+}
