@@ -17,6 +17,7 @@
 package tracing
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -24,48 +25,19 @@ import (
 	"os"
 	"time"
 
-	"github.com/MicroOps-cn/fuck/log"
+	"github.com/gogo/protobuf/jsonpb"
+	"github.com/gogo/protobuf/proto"
 	uuid "github.com/satori/go.uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/MicroOps-cn/fuck/log"
 )
-
-type FileTracing struct {
-	*stdouttrace.Exporter
-	f *os.File
-}
-
-func (t *FileTracing) Shutdown(ctx context.Context) error {
-	if err := t.f.Sync(); err != nil {
-		return err
-	}
-	return t.f.Close()
-}
-
-func NewFileTraceExporter(ctx context.Context, filename string) (sdktrace.SpanExporter, error) {
-	f, err := os.Create(filename)
-	if err != nil {
-		return nil, err
-	}
-	exporter, err := stdouttrace.New(
-		stdouttrace.WithWriter(f),
-		stdouttrace.WithPrettyPrint(),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &FileTracing{
-		Exporter: exporter,
-		f:        f,
-	}, nil
-}
 
 type RetryOptions struct {
 	Enabled         bool
@@ -113,12 +85,57 @@ type TraceOptions struct {
 	GRPC        *GRPCClientOptions   `json:"grpc" yaml:"grpc" mapstructure:"grpc"`
 	Jaeger      *JaegerClientOptions `json:"jaeger" yaml:"jaeger" mapstructure:"jaeger"`
 	Zipkin      *ZipkinClientOptions `json:"zipkin" yaml:"zipkin" mapstructure:"zipkin"`
+	File        *FileTracingOptions  `json:"file" yaml:"file" mapstructure:"file"`
 	ServiceName string               `json:"service_name" yaml:"service_name" mapstructure:"service_name"`
 }
 
-func (c *TraceOptions) UnmarshalJSON(data []byte) (err error) {
+func (o *TraceOptions) UnmarshalJSON(data []byte) (err error) {
 	type plain TraceOptions
-	return json.Unmarshal(data, (*plain)(c))
+	return json.Unmarshal(data, (*plain)(o))
+}
+
+// String implement proto.Message
+func (o TraceOptions) String() string {
+	return proto.CompactTextString(&o)
+}
+
+// ProtoMessage implement proto.Message
+func (o *TraceOptions) ProtoMessage() {}
+
+// Reset *implement proto.Message*
+func (o *TraceOptions) Reset() {
+	*o = TraceOptions{}
+}
+
+func (o *TraceOptions) MarshalJSONPB(marshaller *jsonpb.Marshaler) ([]byte, error) {
+	buf := &bytes.Buffer{}
+	buf.WriteString(marshaller.Indent + "{")
+	enc := json.NewEncoder(buf)
+	enc.SetIndent(marshaller.Indent, marshaller.Indent)
+	var err error
+	if o.HTTP != nil {
+		buf.WriteString(marshaller.Indent + marshaller.Indent + `"http":`)
+		err = enc.Encode(o.HTTP)
+		buf.WriteRune('\n')
+	} else if o.GRPC != nil {
+		buf.WriteString(marshaller.Indent + marshaller.Indent + `"grpc":`)
+		err = enc.Encode(o.GRPC)
+		buf.WriteRune('\n')
+	} else if o.Jaeger != nil {
+		buf.WriteString(marshaller.Indent + marshaller.Indent + `"jaeger":`)
+		err = enc.Encode(o.Jaeger)
+		buf.WriteRune('\n')
+	} else if o.Zipkin != nil {
+		buf.WriteString(marshaller.Indent + marshaller.Indent + `"zipkin":`)
+		err = enc.Encode(o.Zipkin)
+		buf.WriteRune('\n')
+	} else if o.File != nil {
+		buf.WriteString(marshaller.Indent + marshaller.Indent + `"file":`)
+		err = enc.Encode(o.File)
+		buf.WriteRune('\n')
+	}
+	buf.WriteString(marshaller.Indent + "}")
+	return buf.Bytes(), err
 }
 
 type idGenerator struct{}
@@ -156,8 +173,10 @@ func NewTraceProvider(ctx context.Context, o *TraceOptions) (p *sdktrace.TracerP
 		exp, err = NewJaegerTraceExporter(ctx, o.Jaeger)
 	} else if o.Zipkin != nil {
 		exp, err = NewZipkinTraceExporter(ctx, o.Zipkin)
+	} else if o.File != nil {
+		exp, err = NewFileTraceExporter(ctx, o.File)
 	} else {
-		return nil, fmt.Errorf("exporter not specified in tracing configuration")
+		exp, err = NewNopTraceExporter(ctx)
 	}
 	if err != nil {
 		return nil, err
