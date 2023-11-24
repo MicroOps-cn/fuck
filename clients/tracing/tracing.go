@@ -25,6 +25,8 @@ import (
 	"os"
 	"time"
 
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	uuid "github.com/satori/go.uuid"
@@ -164,6 +166,8 @@ func SetTraceOptions(o *TraceOptions) {
 }
 
 func NewTraceProvider(ctx context.Context, o *TraceOptions) (p *sdktrace.TracerProvider, err error) {
+	var logger kitlog.Logger
+	ctx, logger = log.NewContextLogger(ctx)
 	var exp sdktrace.SpanExporter
 	if o.HTTP != nil {
 		exp, err = NewHTTPTraceExporter(ctx, o.HTTP)
@@ -196,7 +200,9 @@ func NewTraceProvider(ctx context.Context, o *TraceOptions) (p *sdktrace.TracerP
 	}
 
 	otel.SetTextMapPropagator(propagation.TraceContext{})
-
+	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+		level.Error(logger).Log("msg", "trace exception", "err", err)
+	}))
 	return sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exp),
 		sdktrace.WithResource(r),
