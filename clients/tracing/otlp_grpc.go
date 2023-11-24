@@ -42,11 +42,6 @@ type GRPCClientOptions struct {
 }
 
 func NewGRPCTraceExporter(ctx context.Context, o *GRPCClientOptions) (sdktrace.SpanExporter, error) {
-	tlsConfig, err := tls.NewTLSConfig(&o.TLSConfig)
-	if err != nil {
-		return nil, err
-	}
-
 	opts := []otlptracegrpc.Option{
 		otlptracegrpc.WithEndpoint(o.Endpoint),
 		otlptracegrpc.WithTimeout(o.Timeout),
@@ -54,10 +49,15 @@ func NewGRPCTraceExporter(ctx context.Context, o *GRPCClientOptions) (sdktrace.S
 		otlptracegrpc.WithHeaders(o.Header),
 		otlptracegrpc.WithServiceConfig(o.ServiceConfig),
 		otlptracegrpc.WithReconnectionPeriod(o.ReconnectionPeriod),
-		otlptracegrpc.WithTLSCredentials(credentials.NewTLS(tlsConfig)),
 	}
 	if o.Insecure {
 		opts = append(opts, otlptracegrpc.WithInsecure())
+	} else {
+		tlsConfig, err := tls.NewTLSConfig(&o.TLSConfig)
+		if err != nil {
+			return nil, err
+		}
+		otlptracegrpc.WithTLSCredentials(credentials.NewTLS(tlsConfig))
 	}
 	if o.Compression == 1 {
 		opts = append(opts, otlptracegrpc.WithCompressor(gzip.Name))
