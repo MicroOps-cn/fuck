@@ -18,8 +18,10 @@ package g
 
 import (
 	"encoding/binary"
-	uuid "github.com/satori/go.uuid"
 	"time"
+
+	uuid "github.com/satori/go.uuid"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const midUint64 = uint64(1) << 63
@@ -48,5 +50,5 @@ func NewId(seed ...string) string {
 
 	id := uuid.NewV4()
 	binary.BigEndian.PutUint64(id[:8], ts)
-	return id.String()
+	return trace.TraceID(id).String()
 }
