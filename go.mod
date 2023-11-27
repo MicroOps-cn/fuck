@@ -6,8 +6,10 @@ require (
 	github.com/glebarez/go-sqlite v1.21.1
 	github.com/glebarez/sqlite v1.8.0
 	github.com/go-kit/log v0.2.1
+	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/gogo/protobuf v1.3.2
+	github.com/golang/protobuf v1.5.3
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
 	github.com/oklog/run v1.1.0
 	github.com/pkg/errors v0.9.1
@@ -41,7 +43,6 @@ require (
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
