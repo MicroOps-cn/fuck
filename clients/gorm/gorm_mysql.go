@@ -20,17 +20,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	w "github.com/MicroOps-cn/fuck/wrapper"
-	"github.com/prometheus/common/model"
+	"strconv"
+	"strings"
 	"time"
 
-	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log/level"
+	"github.com/prometheus/common/model"
 	mysqldriver "gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
+	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/signals"
+	w "github.com/MicroOps-cn/fuck/wrapper"
 	mysql "github.com/go-sql-driver/mysql"
 )
 
@@ -47,6 +49,33 @@ type MySQLOptions struct {
 	Collation             string          `json:"collation,omitempty"`
 	TablePrefix           string          `json:"table_prefix,omitempty"`
 	SlowThreshold         *model.Duration `json:"slow_threshold,omitempty"`
+}
+
+func (x *MySQLOptions) GetPeer() (string, int) {
+	host, port, found := strings.Cut(x.Host, ":")
+	if found && len(port) > 0 {
+		portNum, err := strconv.Atoi(port)
+		if err == nil {
+			return host, portNum
+		}
+	}
+	return x.Host, 3306
+}
+
+func (x *MySQLOptions) GetConnectionString() string {
+	return fmt.Sprintf("mysql://%s", x.Host)
+}
+
+func (x *MySQLOptions) GetDBName() string {
+	return x.Schema
+}
+
+func (x *MySQLOptions) GetUsername() string {
+	return x.Username
+}
+
+func (x *MySQLOptions) GetType() string {
+	return "mysql"
 }
 
 func openMysqlConn(ctx context.Context, slowThreshold time.Duration, options *MySQLOptions, autoCreateSchema bool) (*gorm.DB, error) {
@@ -98,6 +127,7 @@ func openMysqlConn(ctx context.Context, slowThreshold time.Duration, options *My
 
 func NewMySQLClient(ctx context.Context, options MySQLOptions) (clt *Client, err error) {
 	clt = new(Client)
+	clt.options = &options
 	logger := logs.GetContextLogger(ctx)
 	if options.SlowThreshold != nil {
 		clt.slowThreshold = time.Duration(*options.SlowThreshold)

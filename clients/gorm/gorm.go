@@ -24,22 +24,31 @@ import (
 
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log/level"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
-
-	"github.com/MicroOps-cn/fuck/clients/tracing"
 )
 
 type Database struct {
 	*gorm.DB
 }
 
+type DBOptions interface {
+	GetConnectionString() string
+	GetPeer() (string, int)
+	GetDBName() string
+	GetUsername() string
+	GetType() string
+}
+
 type Client struct {
 	name          string
 	database      *Database
 	slowThreshold time.Duration
-	tracer        *sdktrace.TracerProvider
+	tracer        trace.Tracer
 	tracerInitial sync.Once
+	options       DBOptions
 }
 
 type Handler func(*gorm.DB)
@@ -51,19 +60,20 @@ type Processor interface {
 	Replace(name string, handler func(*gorm.DB)) error
 }
 
-func (c *Client) Session(ctx context.Context) *Database {
-	if tracing.DefaultOptions != nil {
-		c.tracerInitial.Do(func() {
-			var err error
-			o := *tracing.DefaultOptions
-			o.ServiceName = c.name
+const instrumentationName = "github.com/MicroOps-cn/fuck/clients/gorm"
 
-			if c.tracer, err = tracing.NewTraceProvider(context.Background(), &o); err != nil {
-				level.Error(logs.GetContextLogger(ctx)).Log("msg", "failed to initial db tracer", "err", err)
-				return
-			}
-		})
-	}
+func (c *Client) Session(ctx context.Context) *Database {
+	host, port := c.options.GetPeer()
+	c.tracerInitial.Do(func() {
+		c.tracer = otel.GetTracerProvider().Tracer(instrumentationName, trace.WithInstrumentationAttributes(
+			attribute.String("db.connection_string", c.options.GetConnectionString()),
+			attribute.String("db.name", c.options.GetDBName()),
+			attribute.String("db.system", c.options.GetType()),
+			attribute.String("db.user", c.options.GetUsername()),
+			attribute.String("net.peer.name", host),
+			attribute.Int("net.peer.port", port),
+		))
+	})
 	logger := logs.GetContextLogger(ctx)
 	session := &gorm.Session{Logger: NewLogAdapter(logger, c.slowThreshold, c.tracer)}
 	if conn := ctx.Value(gormConn{}); conn != nil {

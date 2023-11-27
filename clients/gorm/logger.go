@@ -21,23 +21,22 @@ import (
 	"fmt"
 	"time"
 
-	log2 "github.com/MicroOps-cn/fuck/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/utils"
 
-	logs "github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/fuck/log"
 )
 
 type logContext struct {
 	logger        kitlog.Logger
 	slowThreshold time.Duration
-	tracer        *sdktrace.TracerProvider
+	tracer        trace.Tracer
 }
 
 func (l *logContext) LogMode(lvl logger.LogLevel) logger.Interface {
@@ -59,44 +58,40 @@ func (l *logContext) LogMode(lvl logger.LogLevel) logger.Interface {
 }
 
 func (l logContext) Info(_ context.Context, msg string, data ...interface{}) {
-	level.Info(l.logger).Log(log2.CallerName, utils.FileWithLineNum(), "msg", fmt.Sprintf(msg, data...))
+	level.Info(l.logger).Log(log.CallerName, utils.FileWithLineNum(), "msg", fmt.Sprintf(msg, data...))
 }
 
 func (l logContext) Warn(_ context.Context, msg string, data ...interface{}) {
-	level.Warn(l.logger).Log(log2.CallerName, utils.FileWithLineNum(), "msg", fmt.Sprintf(msg, data...))
+	level.Warn(l.logger).Log(log.CallerName, utils.FileWithLineNum(), "msg", fmt.Sprintf(msg, data...))
 }
 
 func (l logContext) Error(_ context.Context, msg string, data ...interface{}) {
-	level.Error(l.logger).Log(log2.CallerName, utils.FileWithLineNum(), "msg", fmt.Sprintf(msg, data...))
+	level.Error(l.logger).Log(log.CallerName, utils.FileWithLineNum(), "msg", fmt.Sprintf(msg, data...))
 }
 
 func (l logContext) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
 	elapsed := time.Since(begin)
 	var span trace.Span
 	if l.tracer != nil {
-		_, span = l.tracer.Tracer("gorm").Start(ctx, "ExecuteSQL", trace.WithTimestamp(begin))
+		_, span = l.tracer.Start(ctx, "ExecuteSQL", trace.WithTimestamp(begin), trace.WithSpanKind(trace.SpanKindClient))
 	} else {
-		span = trace.SpanFromContext(ctx)
+		_, span = otel.GetTracerProvider().Tracer(instrumentationName).Start(ctx, "ExecuteSQL", trace.WithTimestamp(begin), trace.WithSpanKind(trace.SpanKindClient))
 	}
 	defer span.End()
+	sql, rows := fc()
+	span.SetAttributes(attribute.String("db.statement", sql), attribute.Int64("db.row_return_count", rows))
 	switch {
 	case err != nil && err != gorm.ErrRecordNotFound:
-		sql, rows := fc()
-		span.AddEvent("exec sql", trace.WithAttributes(attribute.String("sql", sql), attribute.Int64("execTime", elapsed.Nanoseconds()/1e6)))
 		span.RecordError(err)
-		level.Error(l.logger).Log(log2.CallerName, utils.FileWithLineNum(), "msg", "SQL execution exception", logs.WrapKeyName("errorMsg"), err, logs.WrapKeyName("sql"), sql, logs.WrapKeyName("execTime"), float64(elapsed.Nanoseconds())/1e6, logs.WrapKeyName("rowReturnCount"), rows)
+		level.Error(l.logger).Log(log.CallerName, utils.FileWithLineNum(), "msg", "SQL execution exception", log.WrapKeyName("errorMsg"), err, log.WrapKeyName("sql"), sql, log.WrapKeyName("execTime"), float64(elapsed.Nanoseconds())/1e6, log.WrapKeyName("rowReturnCount"), rows)
 	case elapsed > l.slowThreshold && l.slowThreshold != 0:
-		sql, rows := fc()
-		span.AddEvent("exec sql", trace.WithAttributes(attribute.String("sql", sql), attribute.Int64("execTime", elapsed.Nanoseconds()/1e6)))
-		level.Warn(l.logger).Log(log2.CallerName, utils.FileWithLineNum(), "msg", "exec SQL query", logs.WrapKeyName("sql"), sql, logs.WrapKeyName("execTime"), float64(elapsed.Nanoseconds())/1e6, logs.WrapKeyName("rowReturnCount"), rows)
+		level.Warn(l.logger).Log(log.CallerName, utils.FileWithLineNum(), "msg", "exec SQL query", log.WrapKeyName("sql"), sql, log.WrapKeyName("execTime"), float64(elapsed.Nanoseconds())/1e6, log.WrapKeyName("rowReturnCount"), rows)
 	default:
-		sql, rows := fc()
-		span.AddEvent("exec sql", trace.WithAttributes(attribute.String("sql", sql), attribute.Int64("execTime", elapsed.Nanoseconds()/1e6)))
-		level.Debug(l.logger).Log(log2.CallerName, utils.FileWithLineNum(), "msg", "exec SQL query", logs.WrapKeyName("sql"), sql, logs.WrapKeyName("execTime"), float64(elapsed.Nanoseconds())/1e6, logs.WrapKeyName("rowReturnCount"), rows)
+		level.Debug(l.logger).Log(log.CallerName, utils.FileWithLineNum(), "msg", "exec SQL query", log.WrapKeyName("sql"), sql, log.WrapKeyName("execTime"), float64(elapsed.Nanoseconds())/1e6, log.WrapKeyName("rowReturnCount"), rows)
 	}
 }
 
-func NewLogAdapter(l kitlog.Logger, slowThreshold time.Duration, tracer *sdktrace.TracerProvider) logger.Interface {
+func NewLogAdapter(l kitlog.Logger, slowThreshold time.Duration, tracer trace.Tracer) logger.Interface {
 	return &logContext{logger: l, slowThreshold: slowThreshold, tracer: tracer}
 }
 

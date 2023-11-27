@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
 	kitlog "github.com/go-kit/log"
@@ -31,6 +32,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	uuid "github.com/satori/go.uuid"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -185,15 +187,30 @@ func NewTraceProvider(ctx context.Context, o *TraceOptions) (p *sdktrace.TracerP
 	if err != nil {
 		return nil, err
 	}
-	if len(o.ServiceName) == 0 {
-		o.ServiceName = os.Getenv("APP_NAME")
+	attrs := []attribute.KeyValue{
+		semconv.HostArchKey.String(runtime.GOARCH),
 	}
-	r, err := resource.Merge(
+	if len(o.ServiceName) != 0 {
+		attrs = append(attrs, semconv.ServiceName(o.ServiceName))
+	}
+	if ns := os.Getenv("OTEL_SERVICE_NAMESPACE"); len(ns) != 0 {
+		attrs = append(attrs, semconv.ServiceNamespace(ns))
+	}
+
+	r, err := resource.New(ctx,
+		resource.WithContainer(),
+		resource.WithOS(),
+		resource.WithHost(),
+		resource.WithProcess(),
+		resource.WithAttributes(attrs...),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err = resource.Merge(
 		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName(o.ServiceName),
-		),
+		r,
 	)
 	if err != nil {
 		return nil, err

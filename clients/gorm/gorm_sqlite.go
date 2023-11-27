@@ -44,6 +44,26 @@ type SQLiteOptions struct {
 	XXX_sizecache        int32           `json:"-"`
 }
 
+func (o SQLiteOptions) GetPeer() (string, int) {
+	return "", 0
+}
+
+func (o SQLiteOptions) GetConnectionString() string {
+	return fmt.Sprintf("sqlite://%s", o.Path)
+}
+
+func (o SQLiteOptions) GetDBName() string {
+	return "main"
+}
+
+func (o SQLiteOptions) GetUsername() string {
+	return ""
+}
+
+func (o SQLiteOptions) GetType() string {
+	return "sqlite"
+}
+
 func init() {
 	gosqlite.MustRegisterDeterministicScalarFunction("from_base64", 1, func(ctx *gosqlite.FunctionContext, args []driver.Value) (driver.Value, error) {
 		switch argTyped := args[0].(type) {
@@ -65,6 +85,7 @@ func NewSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *SQLiteCl
 
 func NewGormSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *Client, err error) {
 	clt = new(Client)
+	clt.options = options
 	logger := log.GetContextLogger(ctx)
 	if options.SlowThreshold != nil {
 		clt.slowThreshold, err = types.DurationFromProto(options.SlowThreshold)
