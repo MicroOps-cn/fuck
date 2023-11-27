@@ -25,6 +25,7 @@ import (
 	"github.com/go-kit/log/level"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -82,11 +83,13 @@ func (l logContext) Trace(ctx context.Context, begin time.Time, fc func() (strin
 	span.SetAttributes(attribute.String("db.statement", sql), attribute.Int64("db.row_return_count", rows))
 	switch {
 	case err != nil && err != gorm.ErrRecordNotFound:
-		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		level.Error(l.logger).Log(log.CallerName, utils.FileWithLineNum(), "msg", "SQL execution exception", log.WrapKeyName("errorMsg"), err, log.WrapKeyName("sql"), sql, log.WrapKeyName("execTime"), float64(elapsed.Nanoseconds())/1e6, log.WrapKeyName("rowReturnCount"), rows)
 	case elapsed > l.slowThreshold && l.slowThreshold != 0:
+		span.SetStatus(codes.Ok, "")
 		level.Warn(l.logger).Log(log.CallerName, utils.FileWithLineNum(), "msg", "exec SQL query", log.WrapKeyName("sql"), sql, log.WrapKeyName("execTime"), float64(elapsed.Nanoseconds())/1e6, log.WrapKeyName("rowReturnCount"), rows)
 	default:
+		span.SetStatus(codes.Ok, "")
 		level.Debug(l.logger).Log(log.CallerName, utils.FileWithLineNum(), "msg", "exec SQL query", log.WrapKeyName("sql"), sql, log.WrapKeyName("execTime"), float64(elapsed.Nanoseconds())/1e6, log.WrapKeyName("rowReturnCount"), rows)
 	}
 }
