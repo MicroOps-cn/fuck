@@ -56,7 +56,7 @@ func TestRing(t *testing.T) {
 		}
 		return false
 	})
-	r.Do(func(a any) {
+	r.Do(func(a int) {
 		require.Contains(t, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, a)
 	})
 	require.Equal(t, r.List(), []int{1, 3, 4, 1})

@@ -24,7 +24,7 @@ func NewRingQueue[T any](n int) *RingQueue[T] {
 	}
 }
 
-func (r *RingQueue[T]) Do(f func(a any)) {
+func (r *RingQueue[T]) Do(f func(a T)) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 	start := r.r.Move(r.start)
