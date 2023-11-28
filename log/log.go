@@ -390,3 +390,14 @@ func (n KeyName) String() string {
 func WrapKeyName(name string) fmt.Stringer {
 	return KeyName(name)
 }
+
+type nopLogger struct {
+}
+
+func (n *nopLogger) Log(keyvals ...interface{}) error {
+	return nil
+}
+
+func NewNopLogger() log.Logger {
+	return &nopLogger{}
+}
