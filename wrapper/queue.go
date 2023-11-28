@@ -46,7 +46,7 @@ func (r *RingQueue[T]) List() []T {
 	return items
 }
 
-func (r *RingQueue[T]) Remove(f func(a any) bool) {
+func (r *RingQueue[T]) Remove(f func(a T) bool) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 

@@ -43,14 +43,14 @@ func TestRing(t *testing.T) {
 		}
 	}
 	require.Equal(t, r.List(), []int{8, 9, 0, 1, 2, 3, 4, 0, 1, 2})
-	r.Remove(func(a any) bool {
+	r.Remove(func(a int) bool {
 		if a == 7 || a == 2 || a == 9 {
 			return true
 		}
 		return false
 	})
 	require.Equal(t, r.List(), []int{8, 0, 1, 3, 4, 0, 1})
-	r.Remove(func(a any) bool {
+	r.Remove(func(a int) bool {
 		if a == 8 || a == 0 {
 			return true
 		}
