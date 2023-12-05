@@ -27,6 +27,10 @@ import (
 const midUint64 = uint64(1) << 63
 
 func NewId(seed ...string) string {
+	return trace.TraceID(NewUUID(seed...)).String()
+}
+
+func NewUUID(seed ...string) uuid.UUID {
 	ts := uint64(time.Now().UnixMicro())
 	if ts < midUint64 {
 		var hash uint64
@@ -49,6 +53,7 @@ func NewId(seed ...string) string {
 	}
 
 	id := uuid.NewV4()
+	id.MarshalText()
 	binary.BigEndian.PutUint64(id[:8], ts)
-	return trace.TraceID(id).String()
+	return id
 }
