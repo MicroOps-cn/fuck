@@ -147,7 +147,7 @@ type idGenerator struct{}
 func (i idGenerator) NewIDs(ctx context.Context) (trace.TraceID, trace.SpanID) {
 	tid, err := uuid.FromString(log.GetTraceId(ctx))
 	if err != nil {
-		tid = uuid.NewV4()
+		tid = uuid.Must(uuid.NewV4())
 	}
 
 	sid := trace.SpanID{}

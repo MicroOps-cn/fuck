@@ -52,8 +52,7 @@ func NewUUID(seed ...string) uuid.UUID {
 		ts += hash
 	}
 
-	id := uuid.NewV4()
-	id.MarshalText()
+	id := uuid.Must(uuid.NewV4())
 	binary.BigEndian.PutUint64(id[:8], ts)
 	return id
 }
