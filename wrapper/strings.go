@@ -16,7 +16,12 @@
 
 package w
 
-import "fmt"
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"strings"
+)
 
 type Stringer struct {
 	stringer func() string
@@ -32,4 +37,22 @@ func NewStringer(stringer func() string) fmt.Stringer {
 
 func StringEqual(a, b string) bool {
 	return a == b
+}
+
+type jsonStringer struct {
+	v interface{}
+}
+
+func (j jsonStringer) String() string {
+	buf := bytes.Buffer{}
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(j.v); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(buf.String())
+}
+
+func JSONStringer(v any) fmt.Stringer {
+	return &jsonStringer{v: v}
 }

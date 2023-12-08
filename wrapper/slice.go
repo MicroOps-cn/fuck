@@ -19,11 +19,11 @@
 package w
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
+
+	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
-	"strings"
 )
 
 func Filter[T any](old []T, f func(item T) bool) []T {
@@ -55,7 +55,7 @@ func Has[T any](s []T, t T, compare func(a, b T) bool) bool {
 
 func Include[T comparable](s []T, t T) bool {
 	for _, val := range s {
-		if ok := val == t; ok {
+		if val == t {
 			return true
 		}
 	}
@@ -63,12 +63,7 @@ func Include[T comparable](s []T, t T) bool {
 }
 
 func Index[T comparable](s []T, t T) int {
-	for idx, val := range s {
-		if ok := val == t; ok {
-			return idx
-		}
-	}
-	return -1
+	return slices.Index(s, t)
 }
 
 func Find[T any](s []T, t T, compare func(a, b T) bool) int {
@@ -86,24 +81,6 @@ func Interfaces[T any](objs []T) []interface{} {
 		newObjs[idx] = obj
 	}
 	return newObjs
-}
-
-type jsonStringer struct {
-	v interface{}
-}
-
-func (j jsonStringer) String() string {
-	buf := bytes.Buffer{}
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(j.v); err != nil {
-		return ""
-	}
-	return strings.TrimSpace(buf.String())
-}
-
-func JSONStringer(v any) fmt.Stringer {
-	return &jsonStringer{v: v}
 }
 
 const (
