@@ -18,19 +18,24 @@ package gorm
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 	mysqldriver "gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
 	logs "github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/fuck/safe"
 	"github.com/MicroOps-cn/fuck/signals"
 	w "github.com/MicroOps-cn/fuck/wrapper"
 	mysql "github.com/go-sql-driver/mysql"
@@ -39,7 +44,7 @@ import (
 type MySQLOptions struct {
 	Host                  string          `json:"host,omitempty"`
 	Username              string          `json:"username,omitempty"`
-	Password              string          `json:"password,omitempty"`
+	Password              safe.String     `json:"password,omitempty"`
 	Schema                string          `json:"schema,omitempty"`
 	MaxIdle               int32           `json:"max_idle,omitempty"`
 	MaxIdleConnections    int32           `json:"max_idle_connections,omitempty"`
@@ -80,12 +85,16 @@ func (x *MySQLOptions) GetType() string {
 
 func openMysqlConn(ctx context.Context, slowThreshold time.Duration, options *MySQLOptions, autoCreateSchema bool) (*gorm.DB, error) {
 	logger := logs.GetContextLogger(ctx)
+	passwd, err := options.Password.UnsafeString()
+	if err != nil {
+		return nil, err
+	}
 	db, err := gorm.Open(
 		mysqldriver.New(mysqldriver.Config{
 			DSN: fmt.Sprintf(
 				"%s:%s@tcp(%s)/%s?parseTime=1&multiStatements=1&charset=%s&collation=%s",
 				options.Username,
-				options.Password,
+				passwd,
 				options.Host,
 				options.Schema,
 				options.Charset,
@@ -125,6 +134,93 @@ func openMysqlConn(ctx context.Context, slowThreshold time.Duration, options *My
 	return db, err
 }
 
+type MySQLStatsCollector struct {
+	db     *gorm.DB
+	logger kitlog.Logger
+	name   string
+	stats  map[string]prometheus.Gauge
+	mux    sync.Mutex
+	o      MySQLOptions
+}
+
+func (m *MySQLStatsCollector) Describe(descs chan<- *prometheus.Desc) {}
+
+func (m *MySQLStatsCollector) setStats(stats sql.DBStats) {
+	if m.stats == nil {
+		labels := map[string]string{"host": m.o.Host, "db_name": m.o.Schema}
+		m.stats = map[string]prometheus.Gauge{
+			"MaxOpenConnections": prometheus.NewGauge(prometheus.GaugeOpts{
+				Name:        "gorm_dbstats_max_open_connections",
+				Help:        "Maximum number of open connections to the database.",
+				ConstLabels: labels,
+			}),
+			"OpenConnections": prometheus.NewGauge(prometheus.GaugeOpts{
+				Name:        "gorm_dbstats_open_connections",
+				Help:        "The number of established connections both in use and idle.",
+				ConstLabels: labels,
+			}),
+			"InUse": prometheus.NewGauge(prometheus.GaugeOpts{
+				Name:        "gorm_dbstats_in_use",
+				Help:        "The number of connections currently in use.",
+				ConstLabels: labels,
+			}),
+			"Idle": prometheus.NewGauge(prometheus.GaugeOpts{
+				Name:        "gorm_dbstats_idle",
+				Help:        "The number of idle connections.",
+				ConstLabels: labels,
+			}),
+			"WaitCount": prometheus.NewGauge(prometheus.GaugeOpts{
+				Name:        "gorm_dbstats_wait_count",
+				Help:        "The total number of connections waited for.",
+				ConstLabels: labels,
+			}),
+			"WaitDuration": prometheus.NewGauge(prometheus.GaugeOpts{
+				Name:        "gorm_dbstats_wait_duration",
+				Help:        "The total time blocked waiting for a new connection.",
+				ConstLabels: labels,
+			}),
+			"MaxIdleClosed": prometheus.NewGauge(prometheus.GaugeOpts{
+				Name:        "gorm_dbstats_max_idle_closed",
+				Help:        "The total number of connections closed due to SetMaxIdleConns.",
+				ConstLabels: labels,
+			}),
+			"MaxLifetimeClosed": prometheus.NewGauge(prometheus.GaugeOpts{
+				Name:        "gorm_dbstats_max_lifetime_closed",
+				Help:        "The total number of connections closed due to SetConnMaxLifetime.",
+				ConstLabels: labels,
+			}),
+			"MaxIdleTimeClosed": prometheus.NewGauge(prometheus.GaugeOpts{
+				Name:        "gorm_dbstats_max_idletime_closed",
+				Help:        "The total number of connections closed due to SetConnMaxIdleTime.",
+				ConstLabels: labels,
+			}),
+		}
+	}
+	m.stats["MaxOpenConnections"].Set(float64(stats.MaxOpenConnections))
+	m.stats["OpenConnections"].Set(float64(stats.OpenConnections))
+	m.stats["InUse"].Set(float64(stats.InUse))
+	m.stats["Idle"].Set(float64(stats.Idle))
+	m.stats["WaitCount"].Set(float64(stats.WaitCount))
+	m.stats["WaitDuration"].Set(float64(stats.WaitDuration))
+	m.stats["MaxIdleClosed"].Set(float64(stats.MaxIdleClosed))
+	m.stats["MaxIdleTimeClosed"].Set(float64(stats.MaxIdleTimeClosed))
+	m.stats["MaxLifetimeClosed"].Set(float64(stats.MaxLifetimeClosed))
+	return
+}
+
+func (m *MySQLStatsCollector) Collect(metrics chan<- prometheus.Metric) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	if sqlDB, err := m.db.DB(); err != nil {
+		level.Warn(m.logger).Log("msg", fmt.Errorf("failed to collect mysql stats: %s", m.name), "err", err)
+	} else {
+		m.setStats(sqlDB.Stats())
+		for _, stat := range m.stats {
+			metrics <- stat
+		}
+	}
+}
+
 func NewMySQLClient(ctx context.Context, options MySQLOptions) (clt *Client, err error) {
 	clt = new(Client)
 	clt.options = &options
@@ -161,27 +257,22 @@ func NewMySQLClient(ctx context.Context, options MySQLOptions) (clt *Client, err
 	}
 
 	stopCh := signals.SetupSignalHandler(logger)
-	stopCh.Add(1)
-	go func() {
-		<-stopCh.Channel()
-		stopCh.WaitRequest()
+	stopCh.PreStop(signals.LevelDB, func() {
 		if sqlDB, err := db.DB(); err == nil {
 			if err = sqlDB.Close(); err != nil {
 				level.Warn(logger).Log("msg", fmt.Errorf("failed to close mysql connect: [%s@%s]", options.Username, options.Host), "err", err)
 			}
+		} else {
+			level.Warn(logger).Log("msg", fmt.Errorf("failed to close mysql connect: [%s@%s]", options.Username, options.Host), "err", err)
 		}
 		level.Debug(logger).Log("msg", "MySQL connect closed")
-		stopCh.Done()
-	}()
-
+	})
+	prometheus.MustRegister(&MySQLStatsCollector{db: db, logger: logger, o: options})
 	level.Debug(logger).Log("msg", "connected to mysql server",
 		"host", options.Host, "username", options.Username,
 		"schema", options.Schema,
 		"charset", options.Charset,
 		"collation", options.Collation)
-	clt.database = &Database{
-		DB: db,
-	}
 	return clt, nil
 }
 

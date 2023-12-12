@@ -18,29 +18,43 @@ package w
 
 import (
 	"errors"
-	"github.com/MicroOps-cn/fuck/signals"
+	"fmt"
+	"os"
+	"time"
+
 	"github.com/oklog/run"
+
+	"github.com/MicroOps-cn/fuck/signals"
 )
 
 type Group run.Group
 
 var ErrStopping = errors.New("program stopping")
 
+var NopInterrupt = func(err error) {}
+
 func (g *Group) Add(execute func() error, interrupt func(error)) {
 	stopCh := signals.SignalHandler()
-	stopCh.Add(1)
+	stopCh.AddFor(1, 1)
 	(*run.Group)(g).Add(execute, func(err error) {
-		<-stopCh.Channel()
+		if interrupt == nil {
+			interrupt = NopInterrupt
+		}
 		interrupt(err)
-		stopCh.Done()
+		stopCh.DoneFor(1)
 	})
 }
+
+var ExitFunc = os.Exit
 
 func (g *Group) Run() error {
 	stopCh := signals.SignalHandler()
 	(*run.Group)(g).Add(func() error {
 		<-stopCh.Channel()
 		return ErrStopping
-	}, func(err error) {})
+	}, func(err error) {
+		fmt.Println(">>>", err)
+		stopCh.SafeStop(time.Second*30, ExitFunc)
+	})
 	return (*run.Group)(g).Run()
 }

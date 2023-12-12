@@ -32,3 +32,36 @@ func E[T any](_ T, err error) error {
 func P[T any](o T) *T {
 	return &o
 }
+
+func DefaultPointer[T any](vals ...*T) *T {
+	for _, val := range vals {
+		if val != nil {
+			return val
+		}
+	}
+	return nil
+}
+
+func DefaultString(vals ...string) string {
+	for _, val := range vals {
+		if len(val) != 0 {
+			return val
+		}
+	}
+	return ""
+}
+
+type Number interface {
+	~int8 | ~int16 | ~int32 | ~int64 |
+		~uint8 | ~uint16 | ~uint32 | ~uint64 |
+		~float64 | ~float32 | ~int | ~uint
+}
+
+func DefaultNumber[T Number](vals ...T) T {
+	for _, val := range vals {
+		if val != 0 {
+			return val
+		}
+	}
+	return 0
+}

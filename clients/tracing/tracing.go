@@ -41,6 +41,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/fuck/signals"
 )
 
 type RetryOptions struct {
@@ -220,9 +221,23 @@ func NewTraceProvider(ctx context.Context, o *TraceOptions) (p *sdktrace.TracerP
 	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
 		level.Error(logger).Log("msg", "trace exception", "err", err)
 	}))
-	return sdktrace.NewTracerProvider(
+	tracer := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exp),
 		sdktrace.WithResource(r),
 		sdktrace.WithIDGenerator(&idGenerator{}),
-	), nil
+	)
+	stopCh := signals.SignalHandler()
+	stopCh.PreStop(signals.LevelTrace, func() {
+		if tracer != nil {
+			timeoutCtx, closeCh := context.WithTimeout(context.Background(), time.Second*5)
+			defer closeCh()
+			if err = tracer.ForceFlush(timeoutCtx); err != nil {
+				level.Error(logger).Log("msg", "failed to force flush trace", "err", err)
+			}
+			if err = tracer.Shutdown(timeoutCtx); err != nil {
+				level.Error(logger).Log("msg", "failed to close trace", "err", err)
+			}
+		}
+	})
+	return tracer, nil
 }

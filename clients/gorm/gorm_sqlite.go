@@ -109,18 +109,14 @@ func NewGormSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *Clie
 		return nil, fmt.Errorf("failed to connect to SQLite database: %s: %s", options.Path, err)
 	}
 	stopCh := signals.SetupSignalHandler(logger)
-	stopCh.Add(1)
-	go func() {
-		<-stopCh.Channel()
-		stopCh.WaitRequest()
+	stopCh.PreStop(signals.LevelDB, func() {
 		if sqlDB, err := db.DB(); err == nil {
 			if err = sqlDB.Close(); err != nil {
 				level.Warn(logger).Log("msg", "Failed to close SQLite database", "err", err)
 			}
 		}
 		level.Debug(logger).Log("msg", "Sqlite connect closed")
-		stopCh.Done()
-	}()
+	})
 	clt.database = &Database{DB: db}
 	return clt, nil
 }

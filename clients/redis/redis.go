@@ -28,70 +28,31 @@ import (
 
 	"github.com/go-kit/log/level"
 	"github.com/go-redis/redis"
-	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
+	"github.com/prometheus/common/model"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/fuck/safe"
 	"github.com/MicroOps-cn/fuck/signals"
 	w "github.com/MicroOps-cn/fuck/wrapper"
 )
 
 type Client struct {
 	client  *redis.Client
-	options *RedisOptions
+	options *Options
 }
 
-// Merge implement proto.Merger
-func (r *Client) Merge(src proto.Message) {
-	if s, ok := src.(*Client); ok {
-		r.options = s.options
-		r.client = s.client
-	}
-}
-
-// String implement proto.Message
-func (r Client) String() string {
-	return r.options.String()
-}
-
-// ProtoMessage implement proto.Message
-func (r *Client) ProtoMessage() {
-	r.options.ProtoMessage()
-}
-
-// Reset *implement proto.Message*
-func (r *Client) Reset() {
-	r.options.Reset()
-}
-
-func (r Client) Marshal() ([]byte, error) {
-	return proto.Marshal(r.options)
-}
-
-func (r *Client) Unmarshal(data []byte) (err error) {
-	if r.options == nil {
-		r.options = &RedisOptions{}
-	}
-	if err = proto.Unmarshal(data, r.options); err != nil {
-		return err
-	}
-	if r.client, err = NewRedisClient(context.Background(), r.options); err != nil {
-		return err
-	}
-	return
-}
-
-func (r Client) MarshalJSON() ([]byte, error) {
+func (r *Client) MarshalJSON() ([]byte, error) {
 	return json.Marshal(r.options)
 }
 
 func (r *Client) UnmarshalJSON(data []byte) (err error) {
 	if r.options == nil {
-		r.options = &RedisOptions{}
+		r.options = &Options{}
 	}
 	if err = json.Unmarshal(data, r.options); err != nil {
 		return err
@@ -102,47 +63,126 @@ func (r *Client) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
-func (o *RedisOptions) UnmarshalJSON(data []byte) (err error) {
-	if len(data) > 0 && data[0] == '"' {
-		return json.Unmarshal(data, &o.Url)
-	}
-	type plain RedisOptions
-	return json.Unmarshal(data, (*plain)(o))
+type Options struct {
+	o        *redis.Options
+	Url      string      `json:"url,omitempty"`
+	Password safe.String `json:"password"`
+	// Database to be selected after connecting to the server.
+	DB *int `json:"db"`
+
+	// Maximum number of retries before giving up.
+	// Default is to not retry failed commands.
+	MaxRetries *int `json:"max_retries"`
+	// Minimum backoff between each retry.
+	// Default is 8 milliseconds; -1 disables backoff.
+	MinRetryBackoff *model.Duration `json:"min_retry_backoff"`
+	// Maximum backoff between each retry.
+	// Default is 512 milliseconds; -1 disables backoff.
+	MaxRetryBackoff *model.Duration `json:"max_retry_backoff"`
+
+	// Dial timeout for establishing new connections.
+	// Default is 5 seconds.
+	DialTimeout *model.Duration `json:"dial_timeout"`
+	// Timeout for socket reads. If reached, commands will fail
+	// with a timeout instead of blocking. Use value -1 for no timeout and 0 for default.
+	// Default is 3 seconds.
+	ReadTimeout *model.Duration `json:"read_timeout"`
+	// Timeout for socket writes. If reached, commands will fail
+	// with a timeout instead of blocking.
+	// Default is ReadTimeout.
+	WriteTimeout *model.Duration `json:"write_timeout"`
+
+	// Maximum number of socket connections.
+	// Default is 10 connections per every CPU as reported by runtime.NumCPU.
+	PoolSize *int `json:"pool_size"`
+	// Minimum number of idle connections which is useful when establishing
+	// new connection is slow.
+	MinIdleConns *int `json:"min_idle_conns"`
+	// Connection age at which client retires (closes) the connection.
+	// Default is to not close aged connections.
+	MaxConnAge *time.Duration `json:"max_conn_age"`
+	// Amount of time client waits for connection if all connections
+	// are busy before returning an error.
+	// Default is ReadTimeout + 1 second.
+	PoolTimeout *time.Duration `json:"pool_timeout"`
+	// Amount of time after which client closes idle connections.
+	// Should be less than server's timeout.
+	// Default is 5 minutes. -1 disables idle timeout check.
+	IdleTimeout *time.Duration `json:"idle_timeout"`
+	// Frequency of idle checks made by idle connections reaper.
+	// Default is 1 minute. -1 disables idle connections reaper,
+	// but idle connections are still discarded by the client
+	// if IdleTimeout is set.
+	IdleCheckFrequency *time.Duration `json:"idle_check_frequency"`
 }
 
-func NewRedisClient(ctx context.Context, option *RedisOptions) (*redis.Client, error) {
-	logger := log.GetContextLogger(ctx)
-	options, err := redis.ParseURL(option.Url)
+func (o *Options) UnmarshalJSON(data []byte) (err error) {
+	if len(data) > 0 && data[0] == '"' {
+		if err = json.Unmarshal(data, &o.Url); err != nil {
+			return err
+		}
+		o.o, err = redis.ParseURL(o.Url)
+		if err != nil {
+			return fmt.Errorf("failed to parse redis url: %s", err)
+		}
+		return nil
+	}
+	type plain Options
+	err = json.Unmarshal(data, (*plain)(o))
 	if err != nil {
-		level.Error(logger).Log("msg", "Failed to parse Redis URL", "err", err, "url", option.Url)
-		return nil, err
+		return err
+	}
+	o.o, err = redis.ParseURL(o.Url)
+	if err != nil {
+		return fmt.Errorf("failed to parse redis url: %s", err)
 	}
 
-	client := redis.NewClient(options)
+	o.Password.Value = w.DefaultString(o.Password.Value, o.o.Password)
+	o.o.DB = *w.DefaultPointer(o.DB, &o.o.DB)
+	o.o.MaxRetries = *w.DefaultPointer(o.MaxRetries, &o.o.MaxRetries)
+	o.o.MinRetryBackoff = *w.DefaultPointer[time.Duration]((*time.Duration)(o.MinRetryBackoff), &o.o.MinRetryBackoff)
+	o.o.MaxRetryBackoff = *w.DefaultPointer[time.Duration]((*time.Duration)(o.MaxRetryBackoff), &o.o.MaxRetryBackoff)
+	o.o.DialTimeout = *w.DefaultPointer[time.Duration]((*time.Duration)(o.DialTimeout), &o.o.DialTimeout)
+	o.o.ReadTimeout = *w.DefaultPointer[time.Duration]((*time.Duration)(o.ReadTimeout), &o.o.ReadTimeout)
+	o.o.WriteTimeout = *w.DefaultPointer[time.Duration]((*time.Duration)(o.WriteTimeout), &o.o.WriteTimeout)
+	o.o.PoolSize = *w.DefaultPointer(o.PoolSize, &o.o.PoolSize)
+	o.o.MinIdleConns = *w.DefaultPointer(o.MinIdleConns, &o.o.MinIdleConns)
+	o.o.MaxConnAge = *w.DefaultPointer(o.MaxConnAge, &o.o.MaxConnAge)
+	o.o.PoolTimeout = *w.DefaultPointer(o.PoolTimeout, &o.o.PoolTimeout)
+	o.o.IdleTimeout = *w.DefaultPointer(o.IdleTimeout, &o.o.IdleTimeout)
+	o.o.IdleCheckFrequency = *w.DefaultPointer(o.IdleCheckFrequency, &o.o.IdleCheckFrequency)
+	return nil
+}
+
+func NewRedisClient(ctx context.Context, option *Options) (*redis.Client, error) {
+	var err error
+	logger := log.GetContextLogger(ctx)
+	o := *option.o
+	o.Password, err = option.Password.UnsafeString()
+	if err != nil {
+		return nil, err
+	}
+	level.Debug(logger).Log("msg", "connect to redis server", "host", o.Addr, "db", o.DB)
+	client := redis.NewClient(&o)
 	if err = client.Ping().Err(); err != nil {
 		level.Error(logger).Log("msg", "Redis connection failed", "err", err)
 		_ = client.Close()
 		return nil, err
 	}
 
+	level.Info(logger).Log("msg", "connected to redis server", "host", option.o.Addr, "db", option.o.DB)
 	stopCh := signals.SetupSignalHandler(logger)
-	if stopCh != nil {
-		stopCh.Add(1)
-		go func() {
-			<-stopCh.Channel()
-			stopCh.WaitRequest()
-			if err = client.Close(); err != nil {
-				level.Error(logger).Log("msg", "Redis client shutdown error", "err", err)
-				time.Sleep(1 * time.Second)
-			}
-			level.Debug(logger).Log("msg", "Closed Redis connection", "err", err)
-			stopCh.Done()
-		}()
-	}
+	stopCh.PreStop(signals.LevelDB, func() {
+		if err = client.Close(); err != nil {
+			level.Error(logger).Log("msg", "Redis client shutdown error", "err", err)
+			time.Sleep(1 * time.Second)
+		}
+		level.Debug(logger).Log("msg", "Closed Redis connection")
+	})
 	return client, nil
 }
 
-func (o *RedisOptions) GetPeer() (string, int) {
+func (o *Options) GetPeer() (string, int) {
 	u, err := url.Parse(o.Url)
 	if err != nil {
 		return "", 0

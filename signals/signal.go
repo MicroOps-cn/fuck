@@ -17,102 +17,155 @@
 package signals
 
 import (
-	"fmt"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
+	"errors"
 	"os"
 	"os/signal"
 	"sync"
+	"time"
+
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
-type StopChan struct {
-	stopCh chan struct{}
-	wg     sync.Map
-	rootWg sync.WaitGroup
-	reqWg  sync.WaitGroup
+type stopFunc func()
+
+type stopFuncs []stopFunc
+
+type Handler struct {
+	stopCh       chan struct{}
+	wg           sync.Map
+	rootWg       sync.WaitGroup
+	reqWg        sync.WaitGroup
+	preStopFuncs []stopFuncs
+	mux          sync.Mutex
+	logger       log.Logger
 }
 
 var once = sync.Once{}
 
 const (
 	LevelRoot    uint8 = 0
+	LevelTrace   uint8 = 5
+	LevelDB      uint8 = 10
 	LevelRequest uint8 = 20
+	LevelMax     uint8 = 31
 )
 
-func (s *StopChan) WaitRequest() {
+func (s *Handler) WaitRequest() {
 	s.reqWg.Wait()
 }
 
-func (s *StopChan) DoneRequest() {
+func (s *Handler) DoneRequest() {
 	s.reqWg.Done()
 }
 
-func (s *StopChan) AddRequest(delta int) {
+func (s *Handler) AddRequest(delta int) {
 	s.reqWg.Add(delta)
 }
 
-func (s *StopChan) Wait() {
+func (s *Handler) Wait() {
 	s.rootWg.Wait()
 }
 
-func (s *StopChan) Done() {
+func (s *Handler) Done() {
 	s.rootWg.Done()
 }
 
-func (s *StopChan) Add(delta int) {
+func (s *Handler) Add(delta int) {
 	s.rootWg.Add(delta)
 }
 
-func (s *StopChan) getWaitGroup(level uint8) *sync.WaitGroup {
+func (s *Handler) getWaitGroup(level uint8) *sync.WaitGroup {
 	wg, _ := s.wg.LoadOrStore(level, &sync.WaitGroup{})
 	return wg.(*sync.WaitGroup)
 }
 
-func (s *StopChan) WaitFor(level uint8) {
+func (s *Handler) WaitFor(level uint8) {
 	s.getWaitGroup(level).Wait()
 }
 
-func (s *StopChan) DoneFor(level uint8) {
+func (s *Handler) DoneFor(level uint8) {
 	s.getWaitGroup(level).Done()
 }
 
-func (s *StopChan) AddFor(level uint8, delta int) {
+func (s *Handler) AddFor(level uint8, delta int) {
 	s.getWaitGroup(level).Add(delta)
 }
 
-func (s *StopChan) Channel() <-chan struct{} {
+func (s *Handler) Channel() <-chan struct{} {
 	return s.stopCh
 }
 
-var stopChan *StopChan
+func (s *Handler) PreStop(level uint8, f stopFunc) {
+	if level > LevelMax || level < LevelRoot {
+		panic(ErrorLevelOutOfBounds)
+	}
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	s.preStopFuncs[level] = append(s.preStopFuncs[level], f)
+}
 
-func SetupSignalHandler(logger log.Logger) (stopCh *StopChan) {
+func (s *Handler) safeStop(logger log.Logger, timeout time.Duration, exitFunc func(int)) {
+	go func() {
+		timer := time.NewTimer(timeout)
+		<-timer.C
+		exitFunc(0)
+	}()
+	stopHandler.mux.Lock()
+	defer stopHandler.mux.Unlock()
+	level.Info(logger).Log("msg", "Received stop signal, the process is about to stop.")
+	close(stopHandler.stopCh)
+	for lvl := len(stopHandler.preStopFuncs) - 1; lvl >= 0; lvl-- {
+		funcs := stopHandler.preStopFuncs[lvl]
+		var wg sync.WaitGroup
+		wg.Add(len(funcs))
+		for _, f := range funcs {
+			go func(sf stopFunc) {
+				defer wg.Done()
+				sf()
+			}(f)
+		}
+		wg.Wait()
+		stopHandler.getWaitGroup(uint8(lvl)).Wait()
+	}
+	exitFunc(0)
+}
+
+func (s *Handler) SafeStop(timeout time.Duration, exitFunc func(int)) {
+	s.safeStop(s.logger, timeout, exitFunc)
+}
+
+var stopHandler *Handler
+
+func SetupSignalHandler(logger log.Logger) (stopCh *Handler) {
 	once.Do(func() {
 		onlyOneSignalHandler := make(chan struct{})
 		close(onlyOneSignalHandler) // panics when called twice
-		stopChan = &StopChan{
-			stopCh: make(chan struct{}),
+		stopHandler = &Handler{
+			stopCh:       make(chan struct{}),
+			preStopFuncs: make([]stopFuncs, LevelMax+1),
+			logger:       logger,
 		}
-		stopChan.wg.Store(LevelRoot, &stopChan.rootWg)
-		stopChan.wg.Store(LevelRequest, &stopChan.reqWg)
+		stopHandler.wg.Store(LevelRoot, &stopHandler.rootWg)
+		stopHandler.wg.Store(LevelRequest, &stopHandler.reqWg)
 		c := make(chan os.Signal, 2)
 		signal.Notify(c, shutdownSignals...)
 
 		go func() {
 			sig := <-c
-			level.Info(logger).Log("msg", fmt.Sprintf("收到信号[%s],进程停止.", sig))
-			close(stopChan.stopCh)
-			stopChan.WaitRequest()
-			stopChan.Wait()
-			os.Exit(1) // second signal. Exit directly.
+			stopHandler.safeStop(log.With(logger, "signal", sig), time.Second*30, os.Exit)
+			// second signal. Exit directly.
 		}()
 	})
-	return stopChan
+	return stopHandler
 }
 
-func SignalHandler() (stopCh *StopChan) {
-	if stopChan == nil {
-		panic("stopChan is not init")
+var ErrorNoInit = errors.New("stopChan is not init")
+var ErrorLevelOutOfBounds = errors.New("level out of bounds")
+
+func SignalHandler() (stopCh *Handler) {
+	if stopHandler == nil {
+		panic(ErrorNoInit)
 	}
-	return stopChan
+	return stopHandler
 }
