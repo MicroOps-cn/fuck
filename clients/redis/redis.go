@@ -125,6 +125,7 @@ func (o *Options) UnmarshalJSON(data []byte) (err error) {
 		if err != nil {
 			return fmt.Errorf("failed to parse redis url: %s", err)
 		}
+		o.Password.Value = w.DefaultString(o.Password.Value, o.o.Password)
 		return nil
 	}
 	type plain Options
