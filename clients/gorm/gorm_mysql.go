@@ -268,11 +268,14 @@ func NewMySQLClient(ctx context.Context, options MySQLOptions) (clt *Client, err
 		level.Debug(logger).Log("msg", "MySQL connect closed")
 	})
 	prometheus.MustRegister(&MySQLStatsCollector{db: db, logger: logger, o: options})
-	level.Debug(logger).Log("msg", "connected to mysql server",
+	level.Info(logger).Log("msg", "connected to mysql server",
 		"host", options.Host, "username", options.Username,
 		"schema", options.Schema,
 		"charset", options.Charset,
 		"collation", options.Collation)
+	clt.database = &Database{
+		DB: db,
+	}
 	return clt, nil
 }
 
