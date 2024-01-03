@@ -11,15 +11,23 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.3
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/oklog/run v1.1.0
 	github.com/pkg/errors v0.9.1
+	github.com/prometheus/client_golang v1.17.0
 	github.com/prometheus/common v0.44.0
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
 	go.opentelemetry.io/otel v1.21.0
+	go.opentelemetry.io/otel/exporters/jaeger v1.17.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.21.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.21.0
+	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.21.0
+	go.opentelemetry.io/otel/exporters/zipkin v1.21.0
 	go.opentelemetry.io/otel/sdk v1.21.0
 	go.opentelemetry.io/otel/trace v1.21.0
+	golang.org/x/crypto v0.14.0
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 	golang.org/x/text v0.13.0
 	google.golang.org/grpc v1.59.0
@@ -27,17 +35,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/mysql v1.4.7
 	gorm.io/gorm v1.25.0
-)
-
-require (
-	github.com/mitchellh/mapstructure v1.5.0
-	github.com/prometheus/client_golang v1.17.0
-	go.opentelemetry.io/otel/exporters/jaeger v1.17.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.21.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.21.0
-	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.21.0
-	go.opentelemetry.io/otel/exporters/zipkin v1.21.0
-	golang.org/x/crypto v0.14.0
 )
 
 require (
