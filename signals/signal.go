@@ -34,8 +34,6 @@ type stopFuncs []stopFunc
 type Handler struct {
 	stopCh       chan struct{}
 	wg           sync.Map
-	rootWg       sync.WaitGroup
-	reqWg        sync.WaitGroup
 	preStopFuncs []stopFuncs
 	mux          sync.Mutex
 	logger       log.Logger
@@ -52,27 +50,27 @@ const (
 )
 
 func (s *Handler) WaitRequest() {
-	s.reqWg.Wait()
+	s.getWaitGroup(LevelRequest).Wait()
 }
 
 func (s *Handler) DoneRequest() {
-	s.reqWg.Done()
+	s.getWaitGroup(LevelRequest).Done()
 }
 
 func (s *Handler) AddRequest(delta int) {
-	s.reqWg.Add(delta)
+	s.getWaitGroup(LevelRequest).Add(delta)
 }
 
 func (s *Handler) Wait() {
-	s.rootWg.Wait()
+	s.getWaitGroup(LevelRoot).Wait()
 }
 
 func (s *Handler) Done() {
-	s.rootWg.Done()
+	s.getWaitGroup(LevelRoot).Done()
 }
 
 func (s *Handler) Add(delta int) {
-	s.rootWg.Add(delta)
+	s.getWaitGroup(LevelRoot).Add(delta)
 }
 
 func (s *Handler) getWaitGroup(level uint8) *sync.WaitGroup {
@@ -126,7 +124,7 @@ func (s *Handler) safeStop(logger log.Logger, timeout time.Duration, exitFunc fu
 			}(f)
 		}
 		wg.Wait()
-		stopHandler.getWaitGroup(uint8(lvl)).Wait()
+		stopHandler.WaitFor(uint8(lvl))
 	}
 	exitFunc(0)
 }
@@ -146,8 +144,6 @@ func SetupSignalHandler(logger log.Logger) (stopCh *Handler) {
 			preStopFuncs: make([]stopFuncs, LevelMax+1),
 			logger:       logger,
 		}
-		stopHandler.wg.Store(LevelRoot, &stopHandler.rootWg)
-		stopHandler.wg.Store(LevelRequest, &stopHandler.reqWg)
 		c := make(chan os.Signal, 2)
 		signal.Notify(c, shutdownSignals...)
 
