@@ -257,6 +257,14 @@ func (n *IPNet) UnmarshalJSON(raw []byte) (err error) {
 	return nil
 }
 
+func ParseIPNet(netStr string) (IPNet, error) {
+	if !strings.ContainsRune(netStr, '/') {
+		netStr = netStr + "/32"
+	}
+	_, ipNet, err := net.ParseCIDR(netStr)
+	return IPNet{IPNet: ipNet, raw: netStr}, err
+}
+
 type IPNets []IPNet
 
 func (s IPNets) Contains(ip net.IP) bool {

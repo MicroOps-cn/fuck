@@ -19,8 +19,11 @@
 package sets
 
 import (
+	"net"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSet(t *testing.T) {
@@ -237,4 +240,56 @@ func TestSet(t *testing.T) {
 			}
 		})
 	})
+}
+
+func TestParseIPNet(t *testing.T) {
+	type args struct {
+		netStr string
+	}
+	tests := []struct {
+		name       string
+		args       args
+		want       IPNet
+		contains   net.IP
+		unContains net.IP
+		wantErr    bool
+	}{{
+		name:       "simple",
+		args:       args{netStr: "192.168.1.1/24"},
+		want:       IPNet{raw: "192.168.1.1/24", IPNet: &net.IPNet{IP: net.IP{0xc0, 0xa8, 0x1, 0x0}, Mask: net.IPMask{0xff, 0xff, 0xff, 0x0}}},
+		contains:   net.IP{0xc0, 0xa8, 0x1, 0x1},
+		unContains: net.IP{0xc0, 0xa8, 0x2, 0x1},
+		wantErr:    false,
+	}, {
+		name:       "simple2",
+		args:       args{netStr: "192.168.1.0/24"},
+		want:       IPNet{raw: "192.168.1.0/24", IPNet: &net.IPNet{IP: net.IP{0xc0, 0xa8, 0x1, 0x0}, Mask: net.IPMask{0xff, 0xff, 0xff, 0x0}}},
+		contains:   net.IP{0xc0, 0xa8, 0x1, 0x1},
+		unContains: net.IP{0xc0, 0xa8, 0x2, 0x1},
+		wantErr:    false,
+	}, {
+		name:       "unmask",
+		args:       args{netStr: "192.168.1.1"},
+		want:       IPNet{raw: "192.168.1.1/32", IPNet: &net.IPNet{IP: net.IP{0xc0, 0xa8, 0x1, 0x1}, Mask: net.IPMask{0xff, 0xff, 0xff, 0xff}}},
+		contains:   net.IP{0xc0, 0xa8, 0x1, 0x1},
+		unContains: net.IP{0xc0, 0xa8, 0x1, 0x2},
+		wantErr:    false,
+	}}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseIPNet(tt.args.netStr)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseIPNet() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got.raw, tt.want.raw) {
+				t.Errorf("ParseIPNet().raw got = %v, want %v", got.raw, tt.want.raw)
+			}
+			if !reflect.DeepEqual(got.IPNet, tt.want.IPNet) {
+				t.Errorf("ParseIPNet().IPNet got = %v, want %v", *got.IPNet, *tt.want.IPNet)
+			}
+			require.True(t, IPNets{got}.Contains(tt.contains))
+			require.False(t, IPNets{got}.Contains(tt.unContains))
+		})
+	}
 }
