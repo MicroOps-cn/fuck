@@ -40,11 +40,11 @@ func (e *String) UnmarshalJSONPB(_ *jsonpb.Unmarshaler, bytes []byte) error {
 	return e.UnmarshalJSON(bytes)
 }
 
-func (e *String) MarshalJSONPB(_ *jsonpb.Marshaler) ([]byte, error) {
+func (e String) MarshalJSONPB(_ *jsonpb.Marshaler) ([]byte, error) {
 	return e.MarshalJSON()
 }
 
-func (e *String) MarshalJSON() ([]byte, error) {
+func (e String) MarshalJSON() ([]byte, error) {
 	return json.Marshal(e.Value)
 }
 
@@ -54,7 +54,7 @@ func (e *String) UnmarshalJSON(bytes []byte) error {
 
 var SecretEnvName = "GLOBAL_ENCRYPT_KEY"
 
-func (e *String) UnsafeString() (string, error) {
+func (e String) UnsafeString() (string, error) {
 	if strings.HasPrefix(e.Value, ciphertextPrefix) {
 		secret := e.secret
 		if secret == "" {
@@ -68,7 +68,7 @@ func (e *String) UnsafeString() (string, error) {
 	return e.Value, nil
 }
 
-func (e *String) Size() int {
+func (e String) Size() int {
 	return len(e.Value)
 }
 
