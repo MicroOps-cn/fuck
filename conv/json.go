@@ -18,15 +18,9 @@ package conv
 
 import (
 	"encoding/json"
-	"fmt"
-	"reflect"
 )
 
-func JSON(src interface{}, dst interface{}) error {
-	rv := reflect.ValueOf(dst)
-	if rv.Kind() != reflect.Pointer || rv.IsNil() {
-		return fmt.Errorf("Parameter error, dst requires a non null pointer. ")
-	}
+func JSON[sT any, dT any](src sT, dst *dT) error {
 	bytes, err := json.Marshal(src)
 	if err != nil {
 		return err
