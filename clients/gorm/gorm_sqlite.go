@@ -117,13 +117,13 @@ func NewGormSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *Clie
 		}
 		level.Debug(logger).Log("msg", "Sqlite connect closed")
 	})
-	clt.database = &Database{DB: db}
+	clt.database = db
 	return clt, nil
 }
 
 func NewSQLiteOptions() *SQLiteOptions {
 	return &SQLiteOptions{
-		Path:        "idas.db",
+		Path:        "data.db",
 		TablePrefix: "t_",
 	}
 }

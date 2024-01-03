@@ -30,10 +30,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type Database struct {
-	*gorm.DB
-}
-
 type DBOptions interface {
 	GetConnectionString() string
 	GetPeer() (string, int)
@@ -42,18 +38,18 @@ type DBOptions interface {
 	GetType() string
 }
 
+type SessionClient interface {
+	Session(ctx context.Context) *gorm.DB
+}
+
 type Client struct {
 	name          string
-	database      *Database
+	database      *gorm.DB
 	slowThreshold time.Duration
 	tracer        trace.Tracer
 	tracerInitial sync.Once
 	options       DBOptions
 }
-
-type Handler func(*gorm.DB)
-
-type Interceptor func(name string, next Handler) Handler
 
 type Processor interface {
 	Get(name string) func(*gorm.DB)
@@ -62,7 +58,7 @@ type Processor interface {
 
 const instrumentationName = "github.com/MicroOps-cn/fuck/clients/gorm"
 
-func (c *Client) Session(ctx context.Context) *Database {
+func (c *Client) Session(ctx context.Context) *gorm.DB {
 	host, port := c.options.GetPeer()
 	c.tracerInitial.Do(func() {
 		c.tracer = otel.GetTracerProvider().Tracer(instrumentationName, trace.WithInstrumentationAttributes(
@@ -78,23 +74,21 @@ func (c *Client) Session(ctx context.Context) *Database {
 	session := &gorm.Session{Logger: NewLogAdapter(logger, c.slowThreshold, c.tracer)}
 	if conn := ctx.Value(gormConn{}); conn != nil {
 		switch db := conn.(type) {
-		case *Database:
-			return &Database{DB: db.Session(session)}
 		case *gorm.DB:
-			return &Database{DB: db.Session(session)}
+			return db.Session(session)
 		default:
 			level.Warn(logger).Log("msg", "Unknown context value type.", "name", fmt.Sprintf("%T", gormConn{}), "value", fmt.Sprintf("%T", conn))
 		}
 	}
-	return &Database{DB: c.database.Session(session).WithContext(ctx)}
+	return c.database.Session(session).WithContext(ctx)
 }
 
 type ConnType interface {
-	*Database | *gorm.DB
+	*gorm.DB
 }
 
-func WithConnContext[T ConnType](ctx context.Context, client T) context.Context {
-	return context.WithValue(ctx, gormConn{}, client)
+func WithConnContext[T ConnType](ctx context.Context, conn T) context.Context {
+	return context.WithValue(ctx, gormConn{}, conn)
 }
 
 type gormConn struct{}

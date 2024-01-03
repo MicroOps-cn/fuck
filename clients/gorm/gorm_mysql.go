@@ -273,9 +273,7 @@ func NewMySQLClient(ctx context.Context, options MySQLOptions) (clt *Client, err
 		"schema", options.Schema,
 		"charset", options.Charset,
 		"collation", options.Collation)
-	clt.database = &Database{
-		DB: db,
-	}
+	clt.database = db
 	return clt, nil
 }
 
