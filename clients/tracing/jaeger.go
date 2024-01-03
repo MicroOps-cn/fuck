@@ -19,7 +19,7 @@ package tracing
 import (
 	"context"
 
-	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/exporters/jaeger" //nolint:staticcheck
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 

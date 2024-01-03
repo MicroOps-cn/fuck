@@ -32,7 +32,7 @@ import (
 	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 
 	"github.com/MicroOps-cn/fuck/capacity"
-	"github.com/MicroOps-cn/fuck/generator"
+	g "github.com/MicroOps-cn/fuck/generator"
 	w "github.com/MicroOps-cn/fuck/wrapper"
 )
 
@@ -391,8 +391,7 @@ func WrapKeyName(name string) fmt.Stringer {
 	return KeyName(name)
 }
 
-type nopLogger struct {
-}
+type nopLogger struct{}
 
 func (n *nopLogger) Log(keyvals ...interface{}) error {
 	return nil

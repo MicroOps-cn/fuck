@@ -22,12 +22,13 @@ import (
 	"sync"
 	"time"
 
-	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log/level"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
+
+	logs "github.com/MicroOps-cn/fuck/log"
 )
 
 type DBOptions interface {

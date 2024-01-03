@@ -156,8 +156,10 @@ func SetupSignalHandler(logger log.Logger) (stopCh *Handler) {
 	return stopHandler
 }
 
-var ErrorNoInit = errors.New("stopChan is not init")
-var ErrorLevelOutOfBounds = errors.New("level out of bounds")
+var (
+	ErrorNoInit           = errors.New("stopChan is not init")
+	ErrorLevelOutOfBounds = errors.New("level out of bounds")
+)
 
 func SignalHandler() (stopCh *Handler) {
 	if stopHandler == nil {

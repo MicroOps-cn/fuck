@@ -3,12 +3,14 @@ package conv
 import (
 	"encoding"
 	"encoding/json"
-	"github.com/MicroOps-cn/fuck/capacity"
-	"github.com/mitchellh/mapstructure"
 	"net/url"
 	"reflect"
 	"strconv"
 	"time"
+
+	"github.com/mitchellh/mapstructure"
+
+	"github.com/MicroOps-cn/fuck/capacity"
 )
 
 // DecodeQuery takes an input query string and uses reflection to translate it to
@@ -57,10 +59,7 @@ func DecodeURLValues(u url.Values, dst interface{}, config *mapstructure.Decoder
 
 // StringToTimeHookFunc returns a DecodeHookFunc that converts
 // strings to time.Time.
-func StringToTimeHookFunc(
-	f reflect.Type,
-	t reflect.Type,
-	data interface{}) (interface{}, error) {
+func StringToTimeHookFunc(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
 	if f.Kind() != reflect.String {
 		return data, nil
 	}
@@ -91,9 +90,7 @@ func StringToTimeHookFunc(
 	return tm, err
 }
 
-func StringToBaseTypeHookFunc(
-	fv reflect.Value,
-	tv reflect.Value) (interface{}, error) {
+func StringToBaseTypeHookFunc(fv reflect.Value, tv reflect.Value) (interface{}, error) {
 	data := fv.Interface()
 	if fv.Kind() != reflect.String {
 		return data, nil
@@ -129,12 +126,8 @@ func StringToBaseTypeHookFunc(
 }
 
 func URLValuesHookFunc(fc mapstructure.DecodeHookFunc) mapstructure.DecodeHookFunc {
-	return func(
-		fv reflect.Value,
-		tv reflect.Value) (interface{}, error) {
-		var err error
-		data := fv.Interface()
-		data, err = mapstructure.DecodeHookExec(fc, fv, tv)
+	return func(fv reflect.Value, tv reflect.Value) (interface{}, error) {
+		data, err := mapstructure.DecodeHookExec(fc, fv, tv)
 		if err != nil {
 			return nil, err
 		}
@@ -154,10 +147,7 @@ func URLValuesHookFunc(fc mapstructure.DecodeHookFunc) mapstructure.DecodeHookFu
 // strings to the UnmarshalBinary function, when the target type
 // implements the encoding.BinaryUnmarshaler interface
 func BinaryUnmarshalerHookFunc() mapstructure.DecodeHookFuncType {
-	return func(
-		f reflect.Type,
-		t reflect.Type,
-		data interface{}) (interface{}, error) {
+	return func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
 		if f.Kind() != reflect.String {
 			return data, nil
 		}

@@ -29,7 +29,7 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/crypto/tea"
+	"golang.org/x/crypto/tea" //nolint:staticcheck
 )
 
 func pkcs5Padding(data []byte, blockSize int) ([]byte, int) {
@@ -91,7 +91,7 @@ func Encrypt(originalBytes []byte, key string, o *EncryptOptions) (string, error
 	if err != nil {
 		return "", err
 	}
-	var args = []byte{byte(o.mode)<<4 | byte(o.padding), 0, 0, 0, 0}
+	args := []byte{byte(o.mode)<<4 | byte(o.padding), 0, 0, 0, 0}
 	binary.BigEndian.PutUint32(args[1:5], uint32(paddingLength))
 	if len(iv) >= 5 {
 		args[0] = iv[0] ^ args[0]

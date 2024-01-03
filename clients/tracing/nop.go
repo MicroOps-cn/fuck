@@ -22,8 +22,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-type nopTraceExporter struct {
-}
+type nopTraceExporter struct{}
 
 func (n nopTraceExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
 	return nil

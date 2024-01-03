@@ -62,7 +62,7 @@ func TestJoinPath(t *testing.T) {
 func TestGetRemoteAddr(t *testing.T) {
 	type args struct {
 		r       *http.Request
-		trustIp sets.IPNets
+		trustIP sets.IPNets
 	}
 	tests := []struct {
 		name string
@@ -78,13 +78,13 @@ func TestGetRemoteAddr(t *testing.T) {
 		name: "trustCidr",
 		args: args{
 			r:       &http.Request{Header: map[string][]string{"X-Forwarded-For": {"192.168.1.1,123.222.123.3,192.168.1.1,10.0.0.1,1.1.1.1"}}},
-			trustIp: []sets.IPNet{w.M(sets.ParseIPNet("1.1.1.1"))},
+			trustIP: []sets.IPNet{w.M(sets.ParseIPNet("1.1.1.1"))},
 		},
 		want: "123.222.123.3",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetRemoteAddr(tt.args.r, tt.args.trustIp); got != tt.want {
+			if got := GetRemoteAddr(tt.args.r, tt.args.trustIP); got != tt.want {
 				t.Errorf("GetRemoteAddr() = %v, want %v", got, tt.want)
 			}
 		})

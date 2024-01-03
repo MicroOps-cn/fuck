@@ -20,12 +20,12 @@ package w
 
 import (
 	"encoding/json"
-	"gopkg.in/yaml.v3"
 	"reflect"
 	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestPipeline(t *testing.T) {

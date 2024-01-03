@@ -55,13 +55,13 @@ func JoinPath(p ...string) string {
 	return ret
 }
 
-func GetRemoteAddr(r *http.Request, trustIp sets.IPNets) string {
+func GetRemoteAddr(r *http.Request, trustIP sets.IPNets) string {
 	remoteAddr, _, _ := strings.Cut(r.RemoteAddr, ":")
 	ipSet := []string{remoteAddr}
 	ipSet = append(ipSet, strings.Split(r.Header.Get("X-Forwarded-For"), ",")...)
 	for i := len(ipSet) - 1; i > 0; i-- {
 		if ip := net.ParseIP(ipSet[i]); ip != nil {
-			if trustIp.Contains(ip) || !ip.IsGlobalUnicast() || ip.IsPrivate() {
+			if trustIP.Contains(ip) || !ip.IsGlobalUnicast() || ip.IsPrivate() {
 				continue
 			}
 			return ipSet[i]

@@ -3,7 +3,6 @@ package safe
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"io"
 	"os"
 	"reflect"
@@ -11,8 +10,9 @@ import (
 
 	gogojsonpb "github.com/gogo/protobuf/jsonpb"
 	gogoproto "github.com/gogo/protobuf/proto"
-	golangjsonpb "github.com/golang/protobuf/jsonpb"
-	golangproto "github.com/golang/protobuf/proto"
+	golangjsonpb "github.com/golang/protobuf/jsonpb" //nolint:staticcheck
+	golangproto "github.com/golang/protobuf/proto"   //nolint:staticcheck
+	"github.com/stretchr/testify/require"
 )
 
 func TestEncryptedString_MarshalJSON(t *testing.T) {

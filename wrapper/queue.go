@@ -7,7 +7,9 @@ import (
 )
 
 var (
+	//nolint:revive
 	QueueFull = errors.New("queue is full")
+	//nolint:revive
 	QueueNull = errors.New("queue is null")
 )
 

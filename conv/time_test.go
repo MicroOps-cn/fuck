@@ -2,9 +2,10 @@ package conv
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestTime_UnmarshalJSON(t *testing.T) {
@@ -18,63 +19,63 @@ func TestTime_UnmarshalJSON(t *testing.T) {
 		name: "DateTime",
 		args: `"2023-01-02 11:22:33"`,
 		want: Time{
-			Time:   time.Date(2023, 01, 02, 11, 22, 33, 0, time.UTC),
+			Time:   time.Date(2023, 01, 02, 11, 22, 33, 0, time.UTC), //nolint:gofumpt
 			Format: time.DateTime,
 		},
 	}, {
 		name: "DateOnly",
 		args: `"2023-01-02"`,
 		want: Time{
-			Time:   time.Date(2023, 01, 02, 0, 0, 0, 0, time.UTC),
+			Time:   time.Date(2023, 01, 02, 0, 0, 0, 0, time.UTC), //nolint:gofumpt
 			Format: time.DateOnly,
 		},
 	}, {
 		name: "RFC3339",
 		args: `"2023-01-02T11:22:33+09:00"`,
 		want: Time{
-			Time:   time.Date(2023, 01, 02, 11, 22, 33, 0, time.FixedZone("", 9*60*60)),
+			Time:   time.Date(2023, 01, 02, 11, 22, 33, 0, time.FixedZone("", 9*60*60)), //nolint:gofumpt
 			Format: time.RFC3339,
 		},
 	}, {
 		name: "unix timestamp",
 		args: `1704189127`,
 		want: Time{
-			Time:   time.Date(2024, 01, 2, 17, 52, 7, 0, time.Local),
+			Time:   time.Date(2024, 01, 2, 17, 52, 7, 0, time.Local), //nolint:gofumpt
 			Format: TimeFormatUnixTimestamp,
 		},
 	}, {
 		name: "unix Mill timestamp",
 		args: `1704189127123`,
 		want: Time{
-			Time:   time.Date(2024, 01, 2, 17, 52, 7, 123*1e6, time.Local),
+			Time:   time.Date(2024, 01, 2, 17, 52, 7, 123*1e6, time.Local), //nolint:gofumpt
 			Format: TimeFormatUnixMilliTimestamp,
 		},
 	}, {
 		name: "unix timestamp string",
 		args: `"1704189127"`,
 		want: Time{
-			Time:   time.Date(2024, 01, 2, 17, 52, 7, 0, time.Local),
+			Time:   time.Date(2024, 01, 2, 17, 52, 7, 0, time.Local), //nolint:gofumpt
 			Format: TimeFormatUnixTimestampString,
 		},
 	}, {
 		name: "unix Mill timestamp string",
 		args: `"1704189127123"`,
 		want: Time{
-			Time:   time.Date(2024, 01, 2, 17, 52, 7, 123*1e6, time.Local),
+			Time:   time.Date(2024, 01, 2, 17, 52, 7, 123*1e6, time.Local), //nolint:gofumpt
 			Format: TimeFormatUnixMilliTimestampString,
 		},
 	}, {
 		name: "float unix timestamp",
 		args: `1704189127.5`,
 		want: Time{
-			Time:   time.Date(2024, 01, 2, 17, 52, 7, 500*1e6, time.Local),
+			Time:   time.Date(2024, 01, 2, 17, 52, 7, 500*1e6, time.Local), //nolint:gofumpt
 			Format: TimeFormatFloatUnixTimestamp,
 		},
 	}, {
 		name: "float unix Mill timestamp",
 		args: `1704189127123.0`,
 		want: Time{
-			Time:   time.Date(2024, 01, 2, 17, 52, 7, 123*1e6, time.Local),
+			Time:   time.Date(2024, 01, 2, 17, 52, 7, 123*1e6, time.Local), //nolint:gofumpt
 			Format: TimeFormatFloatUnixMilliTimestamp,
 		},
 		disableMarshal: true,
@@ -82,14 +83,14 @@ func TestTime_UnmarshalJSON(t *testing.T) {
 		name: "float unix timestamp string",
 		args: `"1704189127.5"`,
 		want: Time{
-			Time:   time.Date(2024, 01, 2, 17, 52, 7, 500*1e6, time.Local),
+			Time:   time.Date(2024, 01, 2, 17, 52, 7, 500*1e6, time.Local), //nolint:gofumpt
 			Format: TimeFormatFloatUnixTimestampString,
 		},
 	}, {
 		name: "float unix Mill timestamp string",
 		args: `"1704189127123.0"`,
 		want: Time{
-			Time:   time.Date(2024, 01, 2, 17, 52, 7, 123*1e6, time.Local),
+			Time:   time.Date(2024, 01, 2, 17, 52, 7, 123*1e6, time.Local), //nolint:gofumpt
 			Format: TimeFormatFloatUnixMilliTimestampString,
 		},
 		disableMarshal: true,
@@ -97,7 +98,7 @@ func TestTime_UnmarshalJSON(t *testing.T) {
 		name: "error string",
 		args: `{}`,
 		want: Time{
-			Time:   time.Date(2024, 01, 2, 17, 52, 7, 123*1e6, time.Local),
+			Time:   time.Date(2024, 01, 2, 17, 52, 7, 123*1e6, time.Local), //nolint:gofumpt
 			Format: TimeFormatUnixMilliTimestampString,
 		},
 		wantErr: true,
@@ -105,7 +106,7 @@ func TestTime_UnmarshalJSON(t *testing.T) {
 		name: "error format",
 		args: `"2023-01-02T11:2:33+09:00"`,
 		want: Time{
-			Time:   time.Date(2024, 01, 2, 17, 52, 7, 123*1e6, time.Local),
+			Time:   time.Date(2024, 01, 2, 17, 52, 7, 123*1e6, time.Local), //nolint:gofumpt
 			Format: TimeFormatUnixMilliTimestampString,
 		},
 		wantErr: true,

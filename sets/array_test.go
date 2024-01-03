@@ -17,8 +17,9 @@
 package sets
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_compare(t *testing.T) {
@@ -27,8 +28,8 @@ func Test_compare(t *testing.T) {
 		a interface{}
 		b interface{}
 	}
-	var a = args{}
-	var b = &a
+	a := args{}
+	b := &a
 	tests := []struct {
 		name string
 		args args
@@ -71,4 +72,9 @@ func TestNewArraySet(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, s.List(), []int{2, 3, 4, 5})
 	require.Len(t, s.List(), 4)
+
+	s.SetFullCallback(func(ints []int, i int64) error { return nil })
+	err = s.Append(11, 22, 33, 44, 55, 66, 77, 88, 99, 00, 22) //nolint:gofumpt
+	require.NoError(t, err)
+	require.Equal(t, s.List(), []int{2, 3, 4, 5, 11, 22, 33, 44, 55, 66})
 }

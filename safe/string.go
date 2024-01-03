@@ -21,7 +21,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/golang/protobuf/jsonpb"
+	"github.com/golang/protobuf/jsonpb" //nolint:staticcheck
 )
 
 type String struct {
@@ -31,8 +31,9 @@ type String struct {
 
 func (e *String) Reset() { e.Value = "" }
 
-func (e *String) String() string            { return e.Value }
-func (e *String) XXX_WellKnownType() string { return "StringValue" }
+func (e *String) String() string { return e.Value }
+
+func (e *String) XXX_WellKnownType() string { return "StringValue" } //nolint:revive
 
 func (e *String) ProtoMessage() {}
 

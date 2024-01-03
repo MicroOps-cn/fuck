@@ -2,9 +2,10 @@ package conv
 
 import (
 	"encoding/json"
-	w "github.com/MicroOps-cn/fuck/wrapper"
 	"strconv"
 	"time"
+
+	w "github.com/MicroOps-cn/fuck/wrapper"
 )
 
 const (
@@ -76,6 +77,7 @@ func (t *Time) fromTimestampStrng(raw string) bool {
 	}
 	return false
 }
+
 func (t *Time) UnmarshalJSON(raw []byte) error {
 	if t.fromTimestampStrng(string(raw)) {
 		return nil

@@ -66,12 +66,12 @@ loop:
 		}
 		idx := atomic.AddInt64(&s.cur, 1)
 		if idx >= s.size {
-			idx = atomic.AddInt64(&s.cur, -1)
+			atomic.AddInt64(&s.cur, -1)
 			if s.fullCallback != nil {
 				if err := s.fullCallback(s.arr, s.cur+1); err != nil {
 					return err
 				} else if idx = atomic.AddInt64(&s.cur, 1); idx >= s.size {
-					idx = atomic.AddInt64(&s.cur, -1)
+					atomic.AddInt64(&s.cur, -1)
 					return nil
 				}
 			} else {
@@ -82,6 +82,7 @@ loop:
 	}
 	return nil
 }
+
 func (s *ArraySet[T]) Index(value T) int {
 	for idx, val := range s.arr {
 		if compare(val, value) {
@@ -90,6 +91,7 @@ func (s *ArraySet[T]) Index(value T) int {
 	}
 	return -1
 }
+
 func (s *ArraySet[T]) Include(value T) bool {
 	for _, val := range s.arr {
 		if compare(val, value) {

@@ -65,7 +65,7 @@ func (r *Client) UnmarshalJSON(data []byte) (err error) {
 
 type Options struct {
 	o        *redis.Options
-	Url      string      `json:"url,omitempty"`
+	URL      string      `json:"url,omitempty"`
 	Password safe.String `json:"password"`
 	// Database to be selected after connecting to the server.
 	DB *int `json:"db"`
@@ -118,10 +118,10 @@ type Options struct {
 
 func (o *Options) UnmarshalJSON(data []byte) (err error) {
 	if len(data) > 0 && data[0] == '"' {
-		if err = json.Unmarshal(data, &o.Url); err != nil {
+		if err = json.Unmarshal(data, &o.URL); err != nil {
 			return err
 		}
-		o.o, err = redis.ParseURL(o.Url)
+		o.o, err = redis.ParseURL(o.URL)
 		if err != nil {
 			return fmt.Errorf("failed to parse redis url: %s", err)
 		}
@@ -133,7 +133,7 @@ func (o *Options) UnmarshalJSON(data []byte) (err error) {
 	if err != nil {
 		return err
 	}
-	o.o, err = redis.ParseURL(o.Url)
+	o.o, err = redis.ParseURL(o.URL)
 	if err != nil {
 		return fmt.Errorf("failed to parse redis url: %s", err)
 	}
@@ -184,7 +184,7 @@ func NewRedisClient(ctx context.Context, option *Options) (*redis.Client, error)
 }
 
 func (o *Options) GetPeer() (string, int) {
-	u, err := url.Parse(o.Url)
+	u, err := url.Parse(o.URL)
 	if err != nil {
 		return "", 0
 	}

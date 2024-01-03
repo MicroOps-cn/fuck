@@ -140,7 +140,7 @@ func TestSetupSignalHandler2(t *testing.T) {
 			mux.Unlock()
 		})
 	}
-	//time.Sleep(time.Second)
+	time.Sleep(time.Second)
 	sh.safeStop(logger, time.Second*30, func(i int) {
 		require.Equal(t, i, 0)
 	})

@@ -122,7 +122,6 @@ func (s OneOrMore[T]) MarshalYAML() (interface{}, error) {
 		return (s)[0], nil
 	}
 	return []T(s), nil
-
 }
 
 func (s *OneOrMore[T]) UnmarshalYAML(value *yaml.Node) error {

@@ -39,6 +39,7 @@ func getSeed(t *testing.T) []string {
 	}
 	return ret
 }
+
 func TestNewId(t *testing.T) {
 	type args struct {
 		seed []string

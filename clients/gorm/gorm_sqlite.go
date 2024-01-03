@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/MicroOps-cn/fuck/log"
 	gosqlite "github.com/glebarez/go-sqlite"
 	"github.com/glebarez/sqlite"
 	"github.com/go-kit/log/level"
@@ -32,6 +31,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
+	"github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/signals"
 )
 
@@ -39,9 +39,9 @@ type SQLiteOptions struct {
 	Path                 string          `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
 	TablePrefix          string          `protobuf:"bytes,2,opt,name=table_prefix,json=tablePrefix,proto3" json:"table_prefix,omitempty"`
 	SlowThreshold        *types.Duration `protobuf:"bytes,12,opt,name=slow_threshold,json=slowThreshold,proto3" json:"slow_threshold,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
-	XXX_unrecognized     []byte          `json:"-"`
-	XXX_sizecache        int32           `json:"-"`
+	XXX_NoUnkeyedLiteral struct{}        `json:"-"` //nolint:revive
+	XXX_unrecognized     []byte          `json:"-"` //nolint:revive
+	XXX_sizecache        int32           `json:"-"` //nolint:revive
 }
 
 func (o SQLiteOptions) GetPeer() (string, int) {

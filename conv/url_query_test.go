@@ -1,12 +1,13 @@
 package conv
 
 import (
-	"github.com/mitchellh/mapstructure"
-	"github.com/stretchr/testify/require"
 	"reflect"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/mitchellh/mapstructure"
+	"github.com/stretchr/testify/require"
 )
 
 type testStructE struct {
@@ -16,10 +17,7 @@ type testStructE struct {
 
 // StringToTimeHookFunc returns a DecodeHookFunc that converts
 // strings to time.Time.
-func testStructEHookFunc(
-	f reflect.Type,
-	t reflect.Type,
-	data interface{}) (interface{}, error) {
+func testStructEHookFunc(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
 	if t != reflect.TypeOf(testStructE{}) {
 		return data, nil
 	}
@@ -99,7 +97,6 @@ func TestDecodeQuery(t *testing.T) {
 	}, {
 		name: "default",
 		args: args{
-
 			query: `a=abc&c=3.0&d=4&a=6&E={"C":1}&F=1703582405.445311`,
 			dst: testStruct[testStruct[any]]{
 				A: []string{"1x"}, B: 99, C: 3.0, D: "4", E: testStruct[any]{B: 3, A: []string{"x"}},
@@ -120,7 +117,6 @@ func TestDecodeQuery(t *testing.T) {
 			} else if !tt.wantErr {
 				require.Equal(t, tt.args.wantDst, tt.args.dst)
 			}
-
 		})
 	}
 }

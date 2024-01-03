@@ -23,12 +23,13 @@ output:
 
 linters:
   enable:
-    - depguard
     - gofumpt
     - goimports
     - revive
     - misspell
     - staticcheck
+  disable:
+    - depguard
 
 issues:
   exclude-rules:

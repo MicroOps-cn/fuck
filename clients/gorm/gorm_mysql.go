@@ -28,6 +28,7 @@ import (
 
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 	mysqldriver "gorm.io/driver/mysql"
@@ -38,7 +39,6 @@ import (
 	"github.com/MicroOps-cn/fuck/safe"
 	"github.com/MicroOps-cn/fuck/signals"
 	w "github.com/MicroOps-cn/fuck/wrapper"
-	mysql "github.com/go-sql-driver/mysql"
 )
 
 type MySQLOptions struct {
@@ -205,7 +205,6 @@ func (m *MySQLStatsCollector) setStats(stats sql.DBStats) {
 	m.stats["MaxIdleClosed"].Set(float64(stats.MaxIdleClosed))
 	m.stats["MaxIdleTimeClosed"].Set(float64(stats.MaxIdleTimeClosed))
 	m.stats["MaxLifetimeClosed"].Set(float64(stats.MaxLifetimeClosed))
-	return
 }
 
 func (m *MySQLStatsCollector) Collect(metrics chan<- prometheus.Metric) {

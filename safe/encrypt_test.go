@@ -95,7 +95,6 @@ func TestEncrypt(t *testing.T) {
 					t.Logf("%s => %s", base64.StdEncoding.EncodeToString(originalData), encryptedStr)
 				}
 			}
-
 		})
 	}
 }

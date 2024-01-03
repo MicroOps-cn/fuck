@@ -1,8 +1,9 @@
 package w
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRing(t *testing.T) {
