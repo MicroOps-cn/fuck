@@ -17,9 +17,11 @@
 package http
 
 import (
-	"fmt"
-	"net"
+	"net/http"
 	"testing"
+
+	"github.com/MicroOps-cn/fuck/sets"
+	w "github.com/MicroOps-cn/fuck/wrapper"
 )
 
 func TestJoinPath(t *testing.T) {
@@ -58,5 +60,33 @@ func TestJoinPath(t *testing.T) {
 }
 
 func TestGetRemoteAddr(t *testing.T) {
-	fmt.Println(net.ParseIP("99.999.999.9999"))
+	type args struct {
+		r       *http.Request
+		trustIp sets.IPNets
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{{
+		name: "simple",
+		args: args{
+			r: &http.Request{Header: map[string][]string{"X-Forwarded-For": {"192.168.1.1,123.222.123.3,192.168.1.1,10.0.0.1,1.1.1.1"}}},
+		},
+		want: "1.1.1.1",
+	}, {
+		name: "trustCidr",
+		args: args{
+			r:       &http.Request{Header: map[string][]string{"X-Forwarded-For": {"192.168.1.1,123.222.123.3,192.168.1.1,10.0.0.1,1.1.1.1"}}},
+			trustIp: []sets.IPNet{w.M(sets.ParseIPNet("1.1.1.1"))},
+		},
+		want: "123.222.123.3",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetRemoteAddr(tt.args.r, tt.args.trustIp); got != tt.want {
+				t.Errorf("GetRemoteAddr() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
