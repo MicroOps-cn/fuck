@@ -62,14 +62,14 @@ func (t *Template) parseTextFileTemplate(filename string) (err error) {
 	return err
 }
 
-func (t *Template) parseHtmlFileTemplate(filename string) (err error) {
+func (t *Template) parseHTMLFileTemplate(filename string) (err error) {
 	t.textTmpl = nil
 	t.htmlTmpl = htmlTemplate.New(filepath.Base(filename)).Funcs(funcMaps)
 	t.htmlTmpl, err = t.htmlTmpl.ParseFiles(filename)
 	return err
 }
 
-func (t *Template) parseHtmlTemplate(raw string) (err error) {
+func (t *Template) parseHTMLTemplate(raw string) (err error) {
 	t.textTmpl = nil
 	t.htmlTmpl = htmlTemplate.New("root").Funcs(funcMaps)
 	t.htmlTmpl, err = t.htmlTmpl.Parse(raw)
@@ -96,11 +96,11 @@ func (t *Template) UnmarshalYAML(value *yaml.Node) (err error) {
 	case "!file":
 		err = t.parseTextFileTemplate(value.Value)
 	case "!htmlFile":
-		err = t.parseHtmlFileTemplate(value.Value)
+		err = t.parseHTMLFileTemplate(value.Value)
 	case "!html":
 		switch value.Kind {
 		case yaml.ScalarNode:
-			err = t.parseHtmlTemplate(value.Value)
+			err = t.parseHTMLTemplate(value.Value)
 		default:
 			return fmt.Errorf("unknown type: %s", value.Tag)
 		}
@@ -190,15 +190,15 @@ func (t *Template) UnmarshalJSON(data []byte) (err error) {
 		case "fn::file":
 			err = t.parseTextFileTemplate(val)
 		case "fn::html":
-			err = t.parseHtmlTemplate(val)
+			err = t.parseHTMLTemplate(val)
 		case "fn::htmlFile":
-			err = t.parseHtmlFileTemplate(val)
+			err = t.parseHTMLFileTemplate(val)
 		default:
 			return fmt.Errorf("unknown function: %s", name)
 		}
 		break
 	}
-	return nil
+	return err
 }
 
 func (t *Template) Execute(wr io.Writer, data any) error {
