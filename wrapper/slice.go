@@ -21,6 +21,7 @@ package w
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
@@ -114,7 +115,7 @@ func Limit[T any](s []T, limit int, hidePosition int, manySuffix ...T) []T {
 
 // OneOrMore represents a value that can either be a string
 // or an array of strings. Mainly here for serialization purposes
-type OneOrMore[T comparable] []T
+type OneOrMore[T any] []T
 
 func (s OneOrMore[T]) MarshalYAML() (interface{}, error) {
 	if len(s) == 1 {
@@ -142,10 +143,17 @@ func (s *OneOrMore[T]) UnmarshalYAML(value *yaml.Node) error {
 	return fmt.Errorf("unknown value type: %s", value.Tag)
 }
 
+type Equal[T any] interface {
+	Equal(T) bool
+}
+
 // Contains returns true when the value is contained in the slice
 func (s OneOrMore[T]) Contains(value T) bool {
-	for _, str := range s {
-		if str == value {
+	for _, item := range s {
+		if v, ok := interface{}(value).(Equal[T]); ok {
+			return v.Equal(item)
+		}
+		if reflect.ValueOf(item).Equal(reflect.ValueOf(value)) {
 			return true
 		}
 	}

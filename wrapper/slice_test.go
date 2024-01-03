@@ -271,12 +271,15 @@ func TestOneOrMoreStringYamlUnmarshal(t *testing.T) {
 		{name: "int string", args: args{value: "123", obj: OneOrMore[string]{}}, want: OneOrMore[string]{"123"}, wantValue: "\"123\"\n"},
 		{name: "string", args: args{value: "hello go", obj: OneOrMore[string]{}}, want: OneOrMore[string]{"hello go"}, wantValue: "hello go\n"},
 		{name: "strings", args: args{value: "- 123\n- 'hello'", obj: OneOrMore[string]{}}, want: OneOrMore[string]{"123", "hello"}, wantValue: "- \"123\"\n- hello\n"},
+		{name: "struct(err)", args: args{value: "{value: 'hello'}", obj: OneOrMore[string]{}}, wantError: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := yaml.Unmarshal([]byte(tt.args.value), &tt.args.obj)
 			if err != nil && !tt.wantError {
 				require.NoErrorf(t, err, "yaml.Unmarshal failed")
+			} else if err != nil && tt.wantError {
+				return
 			}
 			require.Equal(t, tt.want, tt.args.obj)
 			data, err := yaml.Marshal(tt.args.obj)
@@ -325,15 +328,17 @@ func TestOneOrMoreStringJSONUnmarshal(t *testing.T) {
 		obj   OneOrMore[string]
 	}
 	tests := []struct {
-		name      string
-		args      args
-		wantError bool
-		want      OneOrMore[string]
-		wantValue string
+		name       string
+		args       args
+		contains   string
+		unContains string
+		wantError  bool
+		want       OneOrMore[string]
+		wantValue  string
 	}{
-		{name: "int string", args: args{value: `"123"`, obj: OneOrMore[string]{}}, want: OneOrMore[string]{"123"}},
-		{name: "string", args: args{value: `"hello go"`, obj: OneOrMore[string]{}}, want: OneOrMore[string]{"hello go"}},
-		{name: "strings", args: args{value: `["123","hello"]`, obj: OneOrMore[string]{}}, want: OneOrMore[string]{"123", "hello"}},
+		{name: "int string", contains: "123", unContains: "abc", args: args{value: `"123"`, obj: OneOrMore[string]{}}, want: OneOrMore[string]{"123"}},
+		{name: "string", contains: "hello go", unContains: "abc", args: args{value: `"hello go"`, obj: OneOrMore[string]{}}, want: OneOrMore[string]{"hello go"}},
+		{name: "strings", contains: "hello", unContains: "abc", args: args{value: `["123","hello"]`, obj: OneOrMore[string]{}}, want: OneOrMore[string]{"123", "hello"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -351,6 +356,8 @@ func TestOneOrMoreStringJSONUnmarshal(t *testing.T) {
 			} else {
 				require.Equal(t, tt.args.value, string(data))
 			}
+			require.True(t, tt.args.obj.Contains(tt.contains))
+			require.False(t, tt.args.obj.Contains(tt.unContains))
 		})
 	}
 }
@@ -361,15 +368,24 @@ func TestOneOrMoreInt64JSONUnmarshal(t *testing.T) {
 		obj   OneOrMore[int64]
 	}
 	tests := []struct {
-		name      string
-		args      args
-		wantError bool
-		want      OneOrMore[int64]
-		wantValue string
-	}{
-		{name: "int64", args: args{value: "123", obj: OneOrMore[int64]{}}, want: OneOrMore[int64]{123}},
-		{name: "int64s", args: args{value: "[123,456]", obj: OneOrMore[int64]{}}, want: OneOrMore[int64]{123, 456}},
-	}
+		name       string
+		args       args
+		contains   int64
+		unContains int64
+		wantError  bool
+		want       OneOrMore[int64]
+		wantValue  string
+	}{{
+		name:       "int64",
+		contains:   123,
+		unContains: 444,
+		args:       args{value: "123", obj: OneOrMore[int64]{}}, want: OneOrMore[int64]{123},
+	}, {
+		name:       "int64s",
+		contains:   123,
+		unContains: 444,
+		args:       args{value: "[123,456]", obj: OneOrMore[int64]{}}, want: OneOrMore[int64]{123, 456},
+	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := json.Unmarshal([]byte(tt.args.value), &tt.args.obj)
@@ -386,6 +402,8 @@ func TestOneOrMoreInt64JSONUnmarshal(t *testing.T) {
 			} else {
 				require.Equal(t, tt.args.value, string(data))
 			}
+			require.True(t, tt.args.obj.Contains(tt.contains))
+			require.False(t, tt.args.obj.Contains(tt.unContains))
 		})
 	}
 }
