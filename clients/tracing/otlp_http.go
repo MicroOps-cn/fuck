@@ -24,7 +24,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
-	"github.com/MicroOps-cn/fuck/clients/internal/tls"
+	"github.com/MicroOps-cn/fuck/clients/tls"
 )
 
 func (c *HTTPClientOptions) UnmarshalJSON(data []byte) (err error) {

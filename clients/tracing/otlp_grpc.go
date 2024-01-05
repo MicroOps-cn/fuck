@@ -25,7 +25,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/encoding/gzip"
 
-	"github.com/MicroOps-cn/fuck/clients/internal/tls"
+	"github.com/MicroOps-cn/fuck/clients/tls"
 )
 
 type GRPCClientOptions struct {
