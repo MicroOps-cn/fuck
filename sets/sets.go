@@ -256,6 +256,9 @@ func (n *IPNet) UnmarshalJSON(raw []byte) (err error) {
 	}
 	return nil
 }
+func (n IPNet) MarshalJSON() ([]byte, error) {
+	return json.Marshal(n.raw)
+}
 
 func ParseIPNet(netStr string) (IPNet, error) {
 	if !strings.ContainsRune(netStr, '/') {
