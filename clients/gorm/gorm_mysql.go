@@ -35,11 +35,43 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
+	"github.com/MicroOps-cn/fuck/clients/tls"
+	g "github.com/MicroOps-cn/fuck/generator"
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/safe"
 	"github.com/MicroOps-cn/fuck/signals"
 	w "github.com/MicroOps-cn/fuck/wrapper"
 )
+
+type TLSOptions struct {
+	options *tls.TLSOptions
+	name    string
+}
+
+func (o TLSOptions) MarshalJSON() ([]byte, error) {
+	if o.options == nil {
+		return []byte(o.name), nil
+	}
+	return json.Marshal(o.options)
+}
+
+func (o *TLSOptions) UnmarshalJSON(data []byte) (err error) {
+	if err = json.Unmarshal(data, &o.name); err == nil {
+		return nil
+	}
+	if o.options == nil {
+		o.options = &tls.TLSOptions{}
+	}
+	if err = json.Unmarshal(data, o.options); err != nil {
+		return err
+	}
+	o.name = g.NewId()
+	tlsConfig, err := tls.NewTLSConfig(o.options)
+	if err != nil {
+		return err
+	}
+	return mysql.RegisterTLSConfig(o.name, tlsConfig)
+}
 
 type MySQLOptions struct {
 	Host                  string          `json:"host,omitempty"`
@@ -54,6 +86,7 @@ type MySQLOptions struct {
 	Collation             string          `json:"collation,omitempty"`
 	TablePrefix           string          `json:"table_prefix,omitempty"`
 	SlowThreshold         *model.Duration `json:"slow_threshold,omitempty"`
+	TLSConfig             *TLSOptions     `json:"tls_config" yaml:"tls_config" mapstructure:"tls_config"`
 }
 
 func (x *MySQLOptions) GetPeer() (string, int) {
@@ -91,15 +124,18 @@ func openMysqlConn(ctx context.Context, slowThreshold time.Duration, options *My
 	}
 	db, err := gorm.Open(
 		mysqldriver.New(mysqldriver.Config{
-			DSN: fmt.Sprintf(
-				"%s:%s@tcp(%s)/%s?parseTime=1&multiStatements=1&charset=%s&collation=%s",
-				options.Username,
-				passwd,
-				options.Host,
-				options.Schema,
-				options.Charset,
-				options.Collation,
-			),
+			DSNConfig: &mysql.Config{
+				User:                 options.Username,
+				Passwd:               passwd,
+				Net:                  "tcp",
+				Addr:                 options.Host,
+				DBName:               options.Schema,
+				Params:               map[string]string{"charset": options.Charset},
+				Collation:            options.Collation,
+				AllowNativePasswords: true,
+				CheckConnLiveness:    true,
+				ParseTime:            true,
+			},
 		}), &gorm.Config{
 			NamingStrategy: schema.NamingStrategy{
 				TablePrefix:   options.TablePrefix,

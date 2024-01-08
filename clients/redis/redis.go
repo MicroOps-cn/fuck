@@ -35,6 +35,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/MicroOps-cn/fuck/clients/tls"
 	"github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/safe"
 	"github.com/MicroOps-cn/fuck/signals"
@@ -114,6 +115,7 @@ type Options struct {
 	// but idle connections are still discarded by the client
 	// if IdleTimeout is set.
 	IdleCheckFrequency *time.Duration `json:"idle_check_frequency"`
+	TLSConfig          tls.TLSOptions `json:"tls_config" yaml:"tls_config" mapstructure:"tls_config"`
 }
 
 func (o *Options) UnmarshalJSON(data []byte) (err error) {
@@ -152,6 +154,11 @@ func (o *Options) UnmarshalJSON(data []byte) (err error) {
 	o.o.PoolTimeout = *w.DefaultPointer(o.PoolTimeout, &o.o.PoolTimeout)
 	o.o.IdleTimeout = *w.DefaultPointer(o.IdleTimeout, &o.o.IdleTimeout)
 	o.o.IdleCheckFrequency = *w.DefaultPointer(o.IdleCheckFrequency, &o.o.IdleCheckFrequency)
+	tlsConfig, err := tls.NewTLSConfig(&o.TLSConfig)
+	if err != nil {
+		return err
+	}
+	o.o.TLSConfig = tlsConfig
 	return nil
 }
 
