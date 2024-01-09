@@ -27,10 +27,24 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"golang.org/x/crypto/tea" //nolint:staticcheck
 )
+
+var SecretEnvName = "GLOBAL_ENCRYPT_KEY"
+
+func init() {
+	key := os.Getenv(SecretEnvName)
+	switch len(key) {
+	default:
+		fmt.Printf("Crypto: invalid key size %d, please check the environment variable `%s`.\n", len(key), SecretEnvName)
+		os.Exit(1)
+	case 8, 16, 24, 32:
+		break
+	}
+}
 
 func pkcs5Padding(data []byte, blockSize int) ([]byte, int) {
 	padding := blockSize - len(data)%blockSize
@@ -43,10 +57,11 @@ type EncryptOptions struct {
 	algo    EncryptionAlgorithm
 	mode    BlockMode
 	padding PaddingMethod
+	fixAlgo bool
 }
 
 func NewEncryptOptions(ofs ...WithOptionsFunc) *EncryptOptions {
-	o := EncryptOptions{algo: Algorithm3DES, mode: BlockModeCBC, padding: PKCS5Padding}
+	o := EncryptOptions{algo: Algorithm3DES, mode: BlockModeCBC, padding: PKCS5Padding, fixAlgo: false}
 	for _, of := range ofs {
 		of(&o)
 	}
@@ -73,9 +88,41 @@ func WithPadding(padding PaddingMethod) WithOptionsFunc {
 	}
 }
 
+func WithFixAlgo(o *EncryptOptions) {
+	o.fixAlgo = true
+}
+
+func WithoutFixAlgo(o *EncryptOptions) {
+	o.fixAlgo = false
+}
+
+func fixAlgo(key string, o *EncryptOptions) {
+	switch len(key) {
+	case 8:
+		if o.algo != AlgorithmDES {
+			o.algo = AlgorithmDES
+		}
+	case 16:
+		if o.algo != AlgorithmAES && o.algo != AlgorithmTEA {
+			o.algo = AlgorithmAES
+		}
+	case 24:
+		if o.algo != AlgorithmAES && o.algo != Algorithm3DES {
+			o.algo = Algorithm3DES
+		}
+	case 32:
+		if o.algo != AlgorithmAES {
+			o.algo = AlgorithmAES
+		}
+	}
+}
+
 func Encrypt(originalBytes []byte, key string, o *EncryptOptions) (string, error) {
 	if o == nil {
-		o = NewEncryptOptions()
+		o = NewEncryptOptions(WithFixAlgo)
+	}
+	if o.fixAlgo {
+		fixAlgo(key, o)
 	}
 	block, err := o.algo.NewCipher([]byte(key))
 	if err != nil {

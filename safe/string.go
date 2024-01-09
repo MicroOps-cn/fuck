@@ -46,14 +46,26 @@ func (e String) MarshalJSONPB(_ *jsonpb.Marshaler) ([]byte, error) {
 }
 
 func (e String) MarshalJSON() ([]byte, error) {
-	return json.Marshal(e.Value)
+	return json.Marshal(e.String())
 }
 
 func (e *String) UnmarshalJSON(bytes []byte) error {
-	return json.Unmarshal(bytes, &e.Value)
+	if err := json.Unmarshal(bytes, &e.Value); err != nil {
+		return err
+	}
+	if !strings.HasPrefix(e.Value, ciphertextPrefix) {
+		secret := os.Getenv(SecretEnvName)
+		if secret != "" {
+			if enc, err := Encrypt([]byte(e.Value), secret, nil); err != nil {
+				return err
+			} else {
+				e.Value = enc
+				e.secret = secret
+			}
+		}
+	}
+	return nil
 }
-
-var SecretEnvName = "GLOBAL_ENCRYPT_KEY"
 
 func (e String) UnsafeString() (string, error) {
 	if strings.HasPrefix(e.Value, ciphertextPrefix) {
