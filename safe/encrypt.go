@@ -41,7 +41,7 @@ func init() {
 	default:
 		fmt.Printf("Crypto: invalid key size %d, please check the environment variable `%s`.\n", len(key), SecretEnvName)
 		os.Exit(1)
-	case 8, 16, 24, 32:
+	case 0, 8, 16, 24, 32:
 		break
 	}
 }
