@@ -21,7 +21,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/golang/protobuf/jsonpb" //nolint:staticcheck
+	"github.com/gogo/protobuf/jsonpb"
+	"gopkg.in/yaml.v3"
 )
 
 type String struct {
@@ -49,17 +50,31 @@ func (e String) MarshalJSON() ([]byte, error) {
 	return json.Marshal(e.String())
 }
 
-func (e *String) UnmarshalJSON(bytes []byte) error {
-	if err := json.Unmarshal(bytes, &e.Value); err != nil {
+func (e *String) UnmarshalJSON(bytes []byte) (err error) {
+	if err = json.Unmarshal(bytes, &e.Value); err != nil {
 		return err
 	}
 	if !strings.HasPrefix(e.Value, ciphertextPrefix) {
-		secret := os.Getenv(SecretEnvName)
-		if secret != "" {
-			if enc, err := Encrypt([]byte(e.Value), secret, nil); err != nil {
+		if secret := os.Getenv(SecretEnvName); secret != "" {
+			if e.Value, err = Encrypt([]byte(e.Value), secret, nil); err != nil {
 				return err
 			} else {
-				e.Value = enc
+				e.secret = secret
+			}
+		}
+	}
+	return nil
+}
+
+func (e *String) UnmarshalYAML(value *yaml.Node) (err error) {
+	if err := value.Decode(&e.Value); err != nil {
+		return err
+	}
+	if !strings.HasPrefix(e.Value, ciphertextPrefix) {
+		if secret := os.Getenv(SecretEnvName); secret != "" {
+			if e.Value, err = Encrypt([]byte(e.Value), secret, nil); err != nil {
+				return err
+			} else {
 				e.secret = secret
 			}
 		}
