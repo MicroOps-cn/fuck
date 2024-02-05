@@ -11,7 +11,6 @@ import (
 	gogojsonpb "github.com/gogo/protobuf/jsonpb"
 	gogoproto "github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/require"
-	golangproto "google.golang.org/protobuf/proto"
 )
 
 func TestEncryptedString_MarshalJSON(t *testing.T) {
@@ -39,9 +38,6 @@ func TestEncryptedString_MarshalJSON(t *testing.T) {
 
 type gogoMarshaller interface {
 	MarshalToString(m gogoproto.Message) (string, error)
-}
-type golangMarshaller interface {
-	Marshal(m golangproto.Message) ([]byte, error)
 }
 
 func TestEncryptedString_MarshalJSONPB(t *testing.T) {
@@ -105,9 +101,6 @@ func TestEncryptedString_UnmarshalJSON(t *testing.T) {
 
 type gogoUnmarshaller interface {
 	Unmarshal(r io.Reader, m gogoproto.Message) error
-}
-type golangUnmarshaller interface {
-	Unmarshal(b []byte, m golangproto.Message) error
 }
 
 func TestEncryptedString_UnmarshalJSONPB(t *testing.T) {
