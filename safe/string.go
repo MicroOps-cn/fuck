@@ -58,9 +58,8 @@ func (e *String) UnmarshalJSON(bytes []byte) (err error) {
 		if secret := os.Getenv(SecretEnvName); secret != "" {
 			if e.Value, err = Encrypt([]byte(e.Value), secret, nil); err != nil {
 				return err
-			} else {
-				e.secret = secret
 			}
+			e.secret = secret
 		}
 	}
 	return nil
@@ -74,9 +73,8 @@ func (e *String) UnmarshalYAML(value *yaml.Node) (err error) {
 		if secret := os.Getenv(SecretEnvName); secret != "" {
 			if e.Value, err = Encrypt([]byte(e.Value), secret, nil); err != nil {
 				return err
-			} else {
-				e.secret = secret
 			}
+			e.secret = secret
 		}
 	}
 	return nil
