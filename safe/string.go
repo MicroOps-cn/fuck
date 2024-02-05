@@ -30,7 +30,7 @@ type String struct {
 	secret string
 }
 
-func (e *String) Reset() { e.Value = "" }
+func (e *String) Reset() { *e = String{} }
 
 func (e *String) String() string { return e.Value }
 

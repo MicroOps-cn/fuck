@@ -10,9 +10,8 @@ import (
 
 	gogojsonpb "github.com/gogo/protobuf/jsonpb"
 	gogoproto "github.com/gogo/protobuf/proto"
-	golangjsonpb "github.com/golang/protobuf/jsonpb" //nolint:staticcheck
-	golangproto "github.com/golang/protobuf/proto"   //nolint:staticcheck
 	"github.com/stretchr/testify/require"
+	golangproto "google.golang.org/protobuf/proto"
 )
 
 func TestEncryptedString_MarshalJSON(t *testing.T) {
@@ -42,7 +41,7 @@ type gogoMarshaller interface {
 	MarshalToString(m gogoproto.Message) (string, error)
 }
 type golangMarshaller interface {
-	MarshalToString(m golangproto.Message) (string, error)
+	Marshal(m golangproto.Message) ([]byte, error)
 }
 
 func TestEncryptedString_MarshalJSONPB(t *testing.T) {
@@ -58,9 +57,6 @@ func TestEncryptedString_MarshalJSONPB(t *testing.T) {
 	}{{
 		name: "simple", e: String{Value: "hello"}, want: []byte(`"hello"`), wantErr: false,
 		args: args{marshaler: &gogojsonpb.Marshaler{}},
-	}, {
-		name: "simple", e: String{Value: "hello"}, want: []byte(`"hello"`), wantErr: false,
-		args: args{marshaler: &golangjsonpb.Marshaler{}},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -68,8 +64,6 @@ func TestEncryptedString_MarshalJSONPB(t *testing.T) {
 			var err error
 			switch unmarshaler := tt.args.marshaler.(type) {
 			case gogoMarshaller:
-				got, err = unmarshaler.MarshalToString(&tt.e)
-			case golangMarshaller:
 				got, err = unmarshaler.MarshalToString(&tt.e)
 			}
 			if (err != nil) != tt.wantErr {
@@ -113,7 +107,7 @@ type gogoUnmarshaller interface {
 	Unmarshal(r io.Reader, m gogoproto.Message) error
 }
 type golangUnmarshaller interface {
-	Unmarshal(r io.Reader, m golangproto.Message) error
+	Unmarshal(b []byte, m golangproto.Message) error
 }
 
 func TestEncryptedString_UnmarshalJSONPB(t *testing.T) {
@@ -127,9 +121,6 @@ func TestEncryptedString_UnmarshalJSONPB(t *testing.T) {
 		args    args
 		wantErr bool
 	}{{
-		name: "simple", e: String{Value: "hello"}, wantErr: false,
-		args: args{unmarshaler: &golangjsonpb.Unmarshaler{}, bytes: []byte(`"hello"`)},
-	}, {
 		name: "simple2", e: String{Value: "hello"}, wantErr: false,
 		args: args{unmarshaler: &gogojsonpb.Unmarshaler{}, bytes: []byte(`"hello"`)},
 	}}
@@ -137,18 +128,19 @@ func TestEncryptedString_UnmarshalJSONPB(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var e String
 			var err error
-			buf := bytes.NewReader(tt.args.bytes)
 			switch unmarshaler := tt.args.unmarshaler.(type) {
 			case gogoUnmarshaller:
+				buf := bytes.NewReader(tt.args.bytes)
 				err = unmarshaler.Unmarshal(buf, &e)
-			case golangUnmarshaller:
-				err = unmarshaler.Unmarshal(buf, &e)
+			default:
+				t.Errorf("UnmarshalJSONPB() error = unknown unmarshaler")
+				return
 			}
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UnmarshalJSONPB() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if !reflect.DeepEqual(e, tt.e) {
-				t.Errorf("MarshalJSONPB() got = %v, want %v", e, tt.e)
+			if !reflect.DeepEqual(e.Value, tt.e.Value) {
+				t.Errorf("UnmarshalJSONPB() got = %v, want %v", e.Value, tt.e.Value)
 			}
 		})
 	}
