@@ -17,6 +17,7 @@
 package w
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	htmlTemplate "html/template"
@@ -167,6 +168,24 @@ func init() {
 	}
 }
 
+func NewTextTemplate(raw string) (*Template, error) {
+	var t Template
+	err := t.parseTextTemplate(raw)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+func NewHTMLTemplate(raw string) (*Template, error) {
+	var t Template
+	err := t.parseHTMLTemplate(raw)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
 func (t *Template) UnmarshalJSON(data []byte) (err error) {
 	if len(data) >= 2 && data[0] == '"' && data[len(data)-1] == '"' {
 		var text string
@@ -203,6 +222,15 @@ func (t *Template) UnmarshalJSON(data []byte) (err error) {
 
 func (t *Template) Execute(wr io.Writer, data any) error {
 	return t.handler().Execute(wr, data)
+}
+
+func (t *Template) ExecuteToString(data any) (string, error) {
+	var buf bytes.Buffer
+	err := t.handler().Execute(&buf, data)
+	if err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 func (t *Template) DefinedTemplates() string {
