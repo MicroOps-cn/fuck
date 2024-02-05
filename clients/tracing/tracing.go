@@ -88,7 +88,6 @@ func (c *Compression) UnmarshalJSON(data []byte) (err error) {
 type TraceOptions struct {
 	HTTP        *HTTPClientOptions   `json:"http" yaml:"http" mapstructure:"http"`
 	GRPC        *GRPCClientOptions   `json:"grpc" yaml:"grpc" mapstructure:"grpc"`
-	Jaeger      *JaegerClientOptions `json:"jaeger" yaml:"jaeger" mapstructure:"jaeger"`
 	Zipkin      *ZipkinClientOptions `json:"zipkin" yaml:"zipkin" mapstructure:"zipkin"`
 	File        *FileTracingOptions  `json:"file" yaml:"file" mapstructure:"file"`
 	ServiceName string               `json:"service_name" yaml:"service_name" mapstructure:"service_name"`
@@ -125,10 +124,6 @@ func (o *TraceOptions) MarshalJSONPB(marshaller *jsonpb.Marshaler) ([]byte, erro
 	} else if o.GRPC != nil {
 		buf.WriteString(marshaller.Indent + marshaller.Indent + `"grpc":`)
 		err = enc.Encode(o.GRPC)
-		buf.WriteRune('\n')
-	} else if o.Jaeger != nil {
-		buf.WriteString(marshaller.Indent + marshaller.Indent + `"jaeger":`)
-		err = enc.Encode(o.Jaeger)
 		buf.WriteRune('\n')
 	} else if o.Zipkin != nil {
 		buf.WriteString(marshaller.Indent + marshaller.Indent + `"zipkin":`)
@@ -176,8 +171,6 @@ func NewTraceProvider(ctx context.Context, o *TraceOptions) (p *sdktrace.TracerP
 		exp, err = NewHTTPTraceExporter(ctx, o.HTTP)
 	} else if o.GRPC != nil {
 		exp, err = NewGRPCTraceExporter(ctx, o.GRPC)
-	} else if o.Jaeger != nil {
-		exp, err = NewJaegerTraceExporter(ctx, o.Jaeger)
 	} else if o.Zipkin != nil {
 		exp, err = NewZipkinTraceExporter(ctx, o.Zipkin)
 	} else if o.File != nil {
