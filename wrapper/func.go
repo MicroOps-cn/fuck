@@ -65,3 +65,12 @@ func DefaultNumber[T Number](vals ...T) T {
 	}
 	return 0
 }
+
+func Pipe[sT any, dT any](v sT, e error) func(func(sT) (dT, error)) (dT, error) {
+	return func(f func(sT) (dT, error)) (dT, error) {
+		if e != nil {
+			return *new(dT), e
+		}
+		return f(v)
+	}
+}
