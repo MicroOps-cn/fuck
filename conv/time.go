@@ -52,6 +52,7 @@ func (t Time) MarshalJSON() ([]byte, error) {
 var timeFormats = []string{
 	time.DateTime, time.RFC3339, time.RFC3339Nano, time.DateOnly, time.Layout, time.ANSIC,
 	time.UnixDate, time.RubyDate, time.RFC822, time.RFC822Z, time.RFC850, time.RFC1123, time.RFC1123Z,
+	"2006-01-02T15:04:05.999999999Z0700",
 }
 
 func (t *Time) fromTimestampStrng(raw string) bool {
