@@ -74,3 +74,10 @@ func Pipe[sT any, dT any](v sT, e error) func(func(sT) (dT, error)) (dT, error) 
 		return f(v)
 	}
 }
+
+func T[vT any](expr bool, trueVal, falseVal vT) vT {
+	if expr {
+		return trueVal
+	}
+	return falseVal
+}
