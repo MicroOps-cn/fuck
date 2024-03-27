@@ -28,6 +28,7 @@ import (
 
 	"github.com/go-kit/log/level"
 	"github.com/go-redis/redis"
+	"github.com/gogo/protobuf/jsonpb"
 	"github.com/pkg/errors"
 	"github.com/prometheus/common/model"
 	"go.opentelemetry.io/otel"
@@ -47,7 +48,11 @@ type Client struct {
 	options *Options
 }
 
-func (r *Client) MarshalJSON() ([]byte, error) {
+func (r Client) MarshalJSONPB(_ *jsonpb.Marshaler) ([]byte, error) {
+	return r.MarshalJSON()
+}
+
+func (r Client) MarshalJSON() ([]byte, error) {
 	return json.Marshal(r.options)
 }
 
