@@ -56,7 +56,7 @@ const (
 	TraceIdName = "traceId"
 )
 
-var DefaultCaller = Caller(3)
+var DefaultCaller = Caller(5)
 
 var sourceDir = GetSourceCodeDir("log/log.go")
 
@@ -163,10 +163,7 @@ func New(opts ...NewLoggerOption) log.Logger {
 		l = log.NewLogfmtLogger(o.w)
 		_ = level.Warn(l).Log("msg", fmt.Errorf("log output format %s is not registered, using logfmt", *config.Format))
 	}
-	if config.Level != nil {
-		l = level.NewFilter(l, config.Level.getOption())
-	}
-	l = log.With(&extLogger{logger: l, w: o.w}, "ts", TimestampFormat, CallerName, DefaultCaller)
+	l = level.NewFilter(log.With(&extLogger{logger: l, w: o.w}, "ts", TimestampFormat, CallerName, DefaultCaller), config.Level.getOption())
 	return l
 }
 
