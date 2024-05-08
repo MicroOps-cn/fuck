@@ -168,6 +168,13 @@ func Encrypt(originalBytes []byte, key string, o *EncryptOptions) (string, error
 const ciphertextPrefix = "{CRYPT}"
 
 func Decrypt(cipherString, key string) ([]byte, error) {
+	switch len(key) {
+	case 8, 16, 24, 32:
+	default:
+		hash := sha256.New()
+		hash.Write([]byte(key))
+		key = string(hash.Sum(nil))
+	}
 	if len(cipherString) <= len(ciphertextPrefix)+5 {
 		return nil, errors.New("invalid ciphertext")
 	}

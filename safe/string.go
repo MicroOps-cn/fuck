@@ -106,7 +106,6 @@ func (e String) UnsafeString() (string, error) {
 		return "", nil
 	}
 	if strings.HasPrefix(e.value, ciphertextPrefix) {
-		fmt.Println(e.getSecret(), e.value)
 		if secret := e.getSecret(); secret != "" {
 			decrypt, err := Decrypt(e.value, secret)
 			return string(decrypt), err
@@ -134,7 +133,7 @@ func (e *String) SetValue(value string) (err error) {
 	return nil
 }
 
-func (e *String) SetSecret(secret string) {
+func (e *String) UpdateSecret(secret string) {
 	plain, err := e.UnsafeString()
 	if err != nil {
 		return
@@ -144,6 +143,10 @@ func (e *String) SetSecret(secret string) {
 			e.value = safeString
 		}
 	}
+	e.secret = secret
+}
+
+func (e *String) SetSecret(secret string) {
 	e.secret = secret
 }
 
