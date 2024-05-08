@@ -42,6 +42,9 @@ func (e *String) getSecret() string {
 }
 
 func (e *String) String() string {
+	if e.value == "" {
+		return ""
+	}
 	if !strings.HasPrefix(e.value, ciphertextPrefix) {
 		if secret := e.getSecret(); secret != "" {
 			if value, err := Encrypt([]byte(e.value), e.secret, nil); err == nil {
@@ -99,6 +102,9 @@ func (e *String) UnmarshalYAML(value *yaml.Node) (err error) {
 }
 
 func (e String) UnsafeString() (string, error) {
+	if e.value == "" {
+		return "", nil
+	}
 	if strings.HasPrefix(e.value, ciphertextPrefix) {
 		fmt.Println(e.getSecret(), e.value)
 		if secret := e.getSecret(); secret != "" {
