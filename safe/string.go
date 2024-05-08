@@ -123,16 +123,15 @@ func (*String) GormDataType() string {
 	return "string"
 }
 
-func (e *String) SetValue(value string) {
+func (e *String) SetValue(value string) (err error) {
 	if !strings.HasPrefix(value, ciphertextPrefix) {
 		if secret := e.getSecret(); secret != "" {
-			if safeString, err := Encrypt([]byte(value), e.secret, nil); err == nil {
-				e.value = safeString
-			}
+			e.value, err = Encrypt([]byte(value), e.secret, nil)
+			return err
 		}
-	} else {
-		e.value = value
 	}
+	e.value = value
+	return nil
 }
 
 func (e *String) SetSecret(secret string) {

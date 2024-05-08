@@ -132,8 +132,7 @@ func (o *Options) UnmarshalJSON(data []byte) (err error) {
 		if err != nil {
 			return fmt.Errorf("failed to parse redis url: %s", err)
 		}
-		o.Password.SetValue(w.DefaultString(o.Password.String(), o.o.Password))
-		return nil
+		return o.Password.SetValue(w.DefaultString(o.Password.String(), o.o.Password))
 	}
 	type plain Options
 	err = json.Unmarshal(data, (*plain)(o))
@@ -144,8 +143,9 @@ func (o *Options) UnmarshalJSON(data []byte) (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to parse redis url: %s", err)
 	}
-
-	o.Password.SetValue(w.DefaultString(o.Password.String(), o.o.Password))
+	if err = o.Password.SetValue(w.DefaultString(o.Password.String(), o.o.Password)); err != nil {
+		return err
+	}
 	o.o.DB = *w.DefaultPointer(o.DB, &o.o.DB)
 	o.o.MaxRetries = *w.DefaultPointer(o.MaxRetries, &o.o.MaxRetries)
 	o.o.MinRetryBackoff = *w.DefaultPointer[time.Duration]((*time.Duration)(o.MinRetryBackoff), &o.o.MinRetryBackoff)
