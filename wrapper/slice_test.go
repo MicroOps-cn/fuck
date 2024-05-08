@@ -178,7 +178,7 @@ func TestFind(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := Find(tt.args.s, tt.args.t, tt.args.compare); got != tt.wantFind {
+			if got := FindIndex(tt.args.s, tt.args.t, tt.args.compare); got != tt.wantFind {
 				t.Errorf("Find() = %v, want %v", got, tt.wantFind)
 			}
 			if got := Index(tt.args.s, tt.args.t); got != tt.wantIndex {

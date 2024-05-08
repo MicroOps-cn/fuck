@@ -67,13 +67,22 @@ func Index[T comparable](s []T, t T) int {
 	return slices.Index(s, t)
 }
 
-func Find[T any](s []T, t T, compare func(a, b T) bool) int {
+func FindIndex[T any](s []T, t T, compare func(a, b T) bool) int {
 	for idx, val := range s {
 		if compare(val, t) {
 			return idx
 		}
 	}
 	return -1
+}
+
+func Find[T any](s []T, f func(T) bool) T {
+	for _, val := range s {
+		if f(val) {
+			return val
+		}
+	}
+	return *new(T)
 }
 
 func Interfaces[T any](objs []T) []interface{} {
