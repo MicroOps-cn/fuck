@@ -9,10 +9,6 @@ import (
 )
 
 func TestPipe(t *testing.T) {
-	type args[sT any] struct {
-		v *sT
-		e error
-	}
 	type testCase[sT any, dT any] struct {
 		name     string
 		argsFunc func() (sT, error)
