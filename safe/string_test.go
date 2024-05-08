@@ -20,7 +20,7 @@ func TestEncryptedString_MarshalJSON(t *testing.T) {
 		want    []byte
 		wantErr bool
 	}{{
-		name: "simple", e: String{Value: "hello"}, want: []byte(`"hello"`), wantErr: false,
+		name: "simple", e: String{value: "hello"}, want: []byte(`"hello"`), wantErr: false,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -51,7 +51,7 @@ func TestEncryptedString_MarshalJSONPB(t *testing.T) {
 		want    []byte
 		wantErr bool
 	}{{
-		name: "simple", e: String{Value: "hello"}, want: []byte(`"hello"`), wantErr: false,
+		name: "simple", e: String{value: "hello"}, want: []byte(`"hello"`), wantErr: false,
 		args: args{marshaler: &gogojsonpb.Marshaler{}},
 	}}
 	for _, tt := range tests {
@@ -83,7 +83,7 @@ func TestEncryptedString_UnmarshalJSON(t *testing.T) {
 		args    args
 		wantErr bool
 	}{{
-		name: "simple", e: String{Value: "hello"}, wantErr: false,
+		name: "simple", e: String{value: "hello"}, wantErr: false,
 		args: args{bytes: []byte(`"hello"`)},
 	}}
 	for _, tt := range tests {
@@ -114,7 +114,7 @@ func TestEncryptedString_UnmarshalJSONPB(t *testing.T) {
 		args    args
 		wantErr bool
 	}{{
-		name: "simple2", e: String{Value: "hello"}, wantErr: false,
+		name: "simple2", e: String{value: "hello"}, wantErr: false,
 		args: args{unmarshaler: &gogojsonpb.Unmarshaler{}, bytes: []byte(`"hello"`)},
 	}}
 	for _, tt := range tests {
@@ -132,8 +132,8 @@ func TestEncryptedString_UnmarshalJSONPB(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UnmarshalJSONPB() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if !reflect.DeepEqual(e.Value, tt.e.Value) {
-				t.Errorf("UnmarshalJSONPB() got = %v, want %v", e.Value, tt.e.Value)
+			if !reflect.DeepEqual(e.value, tt.e.value) {
+				t.Errorf("UnmarshalJSONPB() got = %v, want %v", e.value, tt.e.value)
 			}
 		})
 	}
@@ -170,7 +170,7 @@ func TestNewEncryptedString(t *testing.T) {
 			unSafeString, err := got.UnsafeString()
 			require.NoError(t, err)
 			if len(tt.args.secret) > 0 {
-				require.NotEqual(t, got.Value, tt.args.unSafeString)
+				require.NotEqual(t, got.value, tt.args.unSafeString)
 			}
 
 			if !reflect.DeepEqual(unSafeString, tt.args.unSafeString) {
@@ -183,7 +183,7 @@ func TestNewEncryptedString(t *testing.T) {
 			unSafeString, err = got.UnsafeString()
 			require.NoError(t, err)
 			if len(tt.args.secret) > 0 {
-				require.NotEqual(t, got.Value, tt.args.unSafeString)
+				require.NotEqual(t, got.value, tt.args.unSafeString)
 			}
 
 			if !reflect.DeepEqual(unSafeString, tt.args.unSafeString) {

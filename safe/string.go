@@ -17,7 +17,9 @@
 package safe
 
 import (
+	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 
@@ -26,13 +28,29 @@ import (
 )
 
 type String struct {
-	Value  string
+	value  string
 	secret string
 }
 
 func (e *String) Reset() { *e = String{} }
 
-func (e *String) String() string { return e.Value }
+func (e *String) getSecret() string {
+	if e.secret != "" {
+		return e.secret
+	}
+	return os.Getenv(SecretEnvName)
+}
+
+func (e *String) String() string {
+	if !strings.HasPrefix(e.value, ciphertextPrefix) {
+		if secret := e.getSecret(); secret != "" {
+			if value, err := Encrypt([]byte(e.value), e.secret, nil); err == nil {
+				e.value = value
+			}
+		}
+	}
+	return e.value
+}
 
 func (e *String) XXX_WellKnownType() string { return "StringValue" } //nolint:revive
 
@@ -51,12 +69,12 @@ func (e String) MarshalJSON() ([]byte, error) {
 }
 
 func (e *String) UnmarshalJSON(bytes []byte) (err error) {
-	if err = json.Unmarshal(bytes, &e.Value); err != nil {
+	if err = json.Unmarshal(bytes, &e.value); err != nil {
 		return err
 	}
-	if !strings.HasPrefix(e.Value, ciphertextPrefix) {
-		if secret := os.Getenv(SecretEnvName); secret != "" {
-			if e.Value, err = Encrypt([]byte(e.Value), secret, nil); err != nil {
+	if !strings.HasPrefix(e.value, ciphertextPrefix) {
+		if secret := e.getSecret(); secret != "" {
+			if e.value, err = Encrypt([]byte(e.value), secret, nil); err != nil {
 				return err
 			}
 			e.secret = secret
@@ -66,12 +84,12 @@ func (e *String) UnmarshalJSON(bytes []byte) (err error) {
 }
 
 func (e *String) UnmarshalYAML(value *yaml.Node) (err error) {
-	if err := value.Decode(&e.Value); err != nil {
+	if err := value.Decode(&e.value); err != nil {
 		return err
 	}
-	if !strings.HasPrefix(e.Value, ciphertextPrefix) {
-		if secret := os.Getenv(SecretEnvName); secret != "" {
-			if e.Value, err = Encrypt([]byte(e.Value), secret, nil); err != nil {
+	if !strings.HasPrefix(e.value, ciphertextPrefix) {
+		if secret := e.getSecret(); secret != "" {
+			if e.value, err = Encrypt([]byte(e.value), secret, nil); err != nil {
 				return err
 			}
 			e.secret = secret
@@ -81,23 +99,74 @@ func (e *String) UnmarshalYAML(value *yaml.Node) (err error) {
 }
 
 func (e String) UnsafeString() (string, error) {
-	if strings.HasPrefix(e.Value, ciphertextPrefix) {
-		secret := e.secret
-		if secret == "" {
-			secret = os.Getenv(SecretEnvName)
-		}
-		if secret != "" {
-			decrypt, err := Decrypt(e.Value, secret)
+	if strings.HasPrefix(e.value, ciphertextPrefix) {
+		fmt.Println(e.getSecret(), e.value)
+		if secret := e.getSecret(); secret != "" {
+			decrypt, err := Decrypt(e.value, secret)
 			return string(decrypt), err
 		}
 	}
-	return e.Value, nil
+	return e.value, nil
 }
 
 func (e String) Size() int {
-	return len(e.Value)
+	return len(e.value)
+}
+
+func (*String) GormDataType() string {
+	return "string"
+}
+
+func (e *String) SetValue(value string) {
+	if !strings.HasPrefix(value, ciphertextPrefix) {
+		if secret := e.getSecret(); secret != "" {
+			if safeString, err := Encrypt([]byte(value), e.secret, nil); err == nil {
+				e.value = safeString
+			}
+		}
+	} else {
+		e.value = value
+	}
+}
+
+func (e *String) SetSecret(secret string) {
+	plain, err := e.UnsafeString()
+	if err != nil {
+		return
+	}
+	if len(secret) != 0 {
+		if safeString, err := Encrypt([]byte(plain), secret, nil); err == nil {
+			e.value = safeString
+		}
+	}
+	e.secret = secret
+}
+
+// Scan implements the Scanner interface.
+func (e *String) Scan(value any) error {
+	switch vt := value.(type) {
+	case []uint8:
+		e.value = string(vt)
+	case string:
+		e.value = vt
+	default:
+		return fmt.Errorf("failed to resolve field, type exception: %T", value)
+	}
+	return nil
+}
+
+// Value implements the driver Valuer interface.
+func (e String) Value() (driver.Value, error) {
+	return e.value, nil
 }
 
 func NewEncryptedString(plain, secret string) *String {
-	return &String{Value: plain, secret: secret}
+	if !strings.HasPrefix(plain, ciphertextPrefix) {
+		if len(secret) > 0 {
+			if safeString, err := Encrypt([]byte(plain), secret, nil); err == nil {
+				return &String{value: safeString, secret: secret}
+			}
+		}
+	}
+	return &String{value: plain, secret: secret}
 }

@@ -22,6 +22,7 @@ import (
 	"crypto/cipher"
 	"crypto/des"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -96,7 +97,7 @@ func WithoutFixAlgo(o *EncryptOptions) {
 	o.fixAlgo = false
 }
 
-func fixAlgo(key string, o *EncryptOptions) {
+func fixAlgo(key string, o *EncryptOptions) string {
 	switch len(key) {
 	case 8:
 		if o.algo != AlgorithmDES {
@@ -114,7 +115,16 @@ func fixAlgo(key string, o *EncryptOptions) {
 		if o.algo != AlgorithmAES {
 			o.algo = AlgorithmAES
 		}
+	default:
+		hash := sha256.New()
+		hash.Write([]byte(key))
+		fixKey := hash.Sum(nil)
+		if o.algo != AlgorithmAES {
+			o.algo = AlgorithmAES
+		}
+		return string(fixKey)
 	}
+	return key
 }
 
 func Encrypt(originalBytes []byte, key string, o *EncryptOptions) (string, error) {
@@ -122,7 +132,7 @@ func Encrypt(originalBytes []byte, key string, o *EncryptOptions) (string, error
 		o = NewEncryptOptions(WithFixAlgo)
 	}
 	if o.fixAlgo {
-		fixAlgo(key, o)
+		key = fixAlgo(key, o)
 	}
 	block, err := o.algo.NewCipher([]byte(key))
 	if err != nil {
