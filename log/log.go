@@ -102,7 +102,7 @@ func newWriterFromConfig(c Config) io.Writer {
 				}
 			} else if (err != nil && os.IsNotExist(err)) || err == nil {
 				fileRotationSize := capacity.Capacities(0)
-				if c.FileRotationSize == "" || c.FileRotationSize == "0" {
+				if c.FileRotationSize != "" && c.FileRotationSize != "0" {
 					fileRotationSize, err = capacity.ParseCapacities(c.FileRotationSize)
 					if err != nil {
 						_, _ = fmt.Fprintf(os.Stderr, "[WARN] Failed to parse parameter file-rotation-size, do not rotate logs by size: %s", err)
@@ -120,7 +120,7 @@ func newWriterFromConfig(c Config) io.Writer {
 					return os.Stdout
 				}
 			} else {
-				_, _ = fmt.Fprintf(os.Stderr, "unknown err: %s, ", err)
+				_, _ = fmt.Fprintf(os.Stderr, "[WARN]failed to open log file, unknown err: %s, ", err)
 				return os.Stdout
 			}
 		}
