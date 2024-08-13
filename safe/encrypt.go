@@ -116,9 +116,7 @@ func fixAlgo(key string, o *EncryptOptions) string {
 			o.algo = AlgorithmAES
 		}
 	default:
-		hash := sha256.New()
-		hash.Write([]byte(key))
-		fixKey := hash.Sum(nil)
+		fixKey := NewHash(sha256.New, []byte(key))
 		if o.algo != AlgorithmAES {
 			o.algo = AlgorithmAES
 		}
@@ -171,9 +169,7 @@ func Decrypt(cipherString, key string) ([]byte, error) {
 	switch len(key) {
 	case 8, 16, 24, 32:
 	default:
-		hash := sha256.New()
-		hash.Write([]byte(key))
-		key = string(hash.Sum(nil))
+		key = string(NewHash(sha256.New, []byte(key)))
 	}
 	if len(cipherString) <= len(ciphertextPrefix)+5 {
 		return nil, errors.New("invalid ciphertext")
