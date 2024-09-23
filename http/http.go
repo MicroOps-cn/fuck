@@ -56,7 +56,10 @@ func JoinPath(p ...string) string {
 }
 
 func GetRemoteAddr(r *http.Request, trustIP sets.IPNets) string {
-	remoteAddr, _, _ := strings.Cut(r.RemoteAddr, ":")
+	remoteAddr := r.RemoteAddr
+	if i := strings.LastIndex(r.RemoteAddr, ":"); i >= 0 {
+		remoteAddr = r.RemoteAddr[:i]
+	}
 	ipSet := []string{remoteAddr}
 	ipSet = append(ipSet, strings.Split(r.Header.Get("X-Forwarded-For"), ",")...)
 	for i := len(ipSet) - 1; i > 0; i-- {
