@@ -10,7 +10,7 @@ var (
 	BuildDate string
 	GoVersion string
 	Platform  string
-	Version   string
+	Version   string = "0.0.0"
 )
 
 var timeFormat = []string{
