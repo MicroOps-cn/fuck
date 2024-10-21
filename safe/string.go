@@ -124,7 +124,8 @@ func (*String) GormDataType() string {
 
 func (e *String) SetValue(value string) (err error) {
 	if !strings.HasPrefix(value, ciphertextPrefix) {
-		if secret := e.getSecret(); secret != "" {
+		if secret := e.getSecret(); secret != "" && value != "" {
+			e.secret = secret
 			e.value, err = Encrypt([]byte(value), e.secret, nil)
 			return err
 		}
