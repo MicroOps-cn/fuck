@@ -141,7 +141,8 @@ func openMysqlConn(ctx context.Context, slowThreshold time.Duration, options *My
 				TablePrefix:   options.TablePrefix,
 				SingularTable: true,
 			},
-			Logger: NewLogAdapter(logger, slowThreshold, nil),
+			Logger:                                   NewLogAdapter(logger, slowThreshold, nil),
+			DisableForeignKeyConstraintWhenMigrating: true,
 		},
 	)
 

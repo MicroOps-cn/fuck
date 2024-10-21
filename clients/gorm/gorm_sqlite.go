@@ -102,7 +102,8 @@ func NewGormSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *Clie
 			TablePrefix:   "t_",
 			SingularTable: true,
 		},
-		Logger: NewLogAdapter(logger, clt.slowThreshold, nil),
+		Logger:                                   NewLogAdapter(logger, clt.slowThreshold, nil),
+		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	if err != nil {
 		level.Error(logger).Log("msg", fmt.Sprintf("failed to connect to SQLite database: %s", options.Path), "err", err)
