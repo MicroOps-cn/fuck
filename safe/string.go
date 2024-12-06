@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/gogo/protobuf/jsonpb"
@@ -178,4 +179,33 @@ func NewEncryptedString(plain, secret string) *String {
 		}
 	}
 	return &String{value: plain, secret: secret}
+}
+
+// SafeStringHookFunc Implementation mapstructure.DecodeHookFunc
+func SafeStringHookFunc() func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+	return func(
+		f reflect.Type,
+		t reflect.Type,
+		data interface{},
+	) (interface{}, error) {
+		if f.Kind() != reflect.String {
+			return data, nil
+		}
+		var dt String
+		if t == reflect.TypeOf(dt) {
+			var err error
+			dt.value = data.(string)
+			dt.secret = dt.getSecret()
+			if !strings.HasPrefix(dt.value, ciphertextPrefix) {
+				if secret := dt.getSecret(); secret != "" {
+					if dt.value, err = Encrypt([]byte(dt.value), secret, nil); err != nil {
+						return String{}, err
+					}
+					dt.secret = secret
+				}
+			}
+			return dt, nil
+		}
+		return data, nil
+	}
 }
