@@ -204,3 +204,12 @@ func (s OneOrMore[T]) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal([]T(s))
 }
+func GroupBy[T any, K comparable, V any](old []T, f func(item T) (groupKey K, value V)) map[K][]V {
+	var group = make(map[K][]V)
+	for _, item := range old {
+		key, value := f(item)
+		of := group[key]
+		group[key] = append(of, value)
+	}
+	return group
+}
