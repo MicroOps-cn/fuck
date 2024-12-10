@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
-	"gorm.io/gorm"
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
+	"gorm.io/gorm/logger"
+
+	w "github.com/MicroOps-cn/fuck/wrapper"
 )
 
 type Error interface {
@@ -114,7 +117,7 @@ func WithMessage(err error, msg string) error {
 			err:    errors.WithMessage(err, msg),
 		}
 	}
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	if errors.Is(err, logger.ErrRecordNotFound) {
 		return &errorWrapper{
 			code:   "404",
 			status: http.StatusNotFound,
@@ -173,7 +176,7 @@ func NewNotFoundError(name string) error {
 }
 
 func IsNotFount(err error) bool {
-	if errors.Is(err, NotFoundError) || errors.Is(err, gorm.ErrRecordNotFound) {
+	if errors.Is(err, NotFoundError) || errors.Is(err, logger.ErrRecordNotFound) {
 		return true
 	}
 	var ne *notFoundError
@@ -189,3 +192,61 @@ func IsNotFount(err error) bool {
 	}
 	return false
 }
+
+func NewErrors(status int, prefix string, code ...string) *Errors {
+	var c string
+	if len(code) <= 0 {
+		c = strconv.Itoa(status)
+	} else {
+		c = code[0]
+	}
+	return &Errors{
+		code:   c,
+		status: status,
+		errs:   []error{},
+		prefix: prefix,
+	}
+}
+
+type Errors struct {
+	errs   []error
+	code   string
+	status int
+	prefix string
+}
+
+func (m *Errors) Code() string {
+	return m.code
+}
+
+func (m *Errors) StatusCode() int {
+	return m.status
+}
+
+func (m *Errors) Error() string {
+	if len(m.errs) > 0 {
+		if len(m.errs) == 1 {
+			return m.errs[0].Error()
+		}
+		var errs []string
+		for _, err := range m.errs {
+			errs = append(errs, err.Error())
+		}
+		return m.prefix + strings.Join(errs, ",")
+	}
+	return ""
+}
+
+func (m *Errors) HasError() bool {
+	return len(w.Filter(m.errs, func(err error) bool {
+		return err != nil
+	})) > 0
+}
+
+func (m *Errors) Append(err error) {
+	if err != nil {
+		m.errs = append(m.errs, err)
+	}
+}
+
+var _ Error = (*Errors)(nil)
