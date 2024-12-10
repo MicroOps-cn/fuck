@@ -16,6 +16,7 @@ import (
 	"github.com/aws/smithy-go/time"
 	"github.com/spf13/afero"
 	"io"
+	"io/fs"
 	http2 "net/http"
 	"os"
 	"strconv"
@@ -42,6 +43,18 @@ type Client struct {
 	bucket   string
 	o        Options
 	cacheFS  afero.Fs
+}
+
+func (c Client) ReadDir(name string) ([]fs.DirEntry, error) {
+	var entries []fs.DirEntry
+	err := c.ListObject(context.Background(), name, false, func(object storage.Object) {
+		entries = append(entries, object)
+	})
+	return entries, err
+}
+
+func (c Client) Open(name string) (fs.File, error) {
+	return c.GetObject(context.Background(), name)
 }
 
 func (c Client) Name() string {
@@ -80,20 +93,23 @@ func (c Client) GetObject(ctx context.Context, objectPath string) (*storage.Obje
 		return nil, err
 	}
 	return &storage.ObjectReader{
-		ReadCloser:   ret.Body,
-		Metadata:     ret.Metadata,
-		LastModified: aws.ToTime(ret.LastModified),
-		Size:         aws.ToInt64(ret.ContentLength),
-		Headers: map[string][]string{
-			"Content-Type":        {aws.ToString(ret.ContentType)},
-			"Content-Encoding":    {aws.ToString(ret.ContentEncoding)},
-			"Content-Language":    {aws.ToString(ret.ContentLanguage)},
-			"Content-Disposition": {aws.ToString(ret.ContentDisposition)},
-			"Cache-Control":       {aws.ToString(ret.CacheControl)},
-			"Expires":             {aws.ToString(ret.ExpiresString)},
-			"Content-Length":      {strconv.FormatInt(aws.ToInt64(ret.ContentLength), 64)},
-			"Last-Modified":       {time.FormatHTTPDate(aws.ToTime(ret.LastModified))},
-			"ETag":                {aws.ToString(ret.ETag)},
+		ReadCloser: ret.Body,
+		Object: storage.Object{
+			LastModified: aws.ToTime(ret.LastModified),
+			Size:         aws.ToInt64(ret.ContentLength),
+			Headers: map[string][]string{
+				"Content-Type":        {aws.ToString(ret.ContentType)},
+				"Content-Encoding":    {aws.ToString(ret.ContentEncoding)},
+				"Content-Language":    {aws.ToString(ret.ContentLanguage)},
+				"Content-Disposition": {aws.ToString(ret.ContentDisposition)},
+				"Cache-Control":       {aws.ToString(ret.CacheControl)},
+				"Expires":             {aws.ToString(ret.ExpiresString)},
+				"Content-Length":      {strconv.FormatInt(aws.ToInt64(ret.ContentLength), 64)},
+				"Last-Modified":       {time.FormatHTTPDate(aws.ToTime(ret.LastModified))},
+				"ETag":                {aws.ToString(ret.ETag)},
+			},
+			Mode:     storage.RawPermissionsToMode(ret.Metadata["x-amz-meta-file-permissions"]),
+			Metadata: ret.Metadata,
 		},
 	}, nil
 }
@@ -147,6 +163,7 @@ func (c Client) HeadObject(ctx context.Context, objectPath string) (obj *storage
 		Bucket: &bucket,
 		Key:    &key,
 	})
+
 	if err == nil {
 		return &storage.Object{
 			Key:          key,
@@ -154,6 +171,19 @@ func (c Client) HeadObject(ctx context.Context, objectPath string) (obj *storage
 			Size:         *s3ObjectInfo.ContentLength,
 			ETag:         strings.Trim(aws.ToString(s3ObjectInfo.ETag), `"`),
 			StorageClass: string(s3ObjectInfo.StorageClass),
+			Headers: map[string][]string{
+				"Content-Type":        {aws.ToString(s3ObjectInfo.ContentType)},
+				"Content-Encoding":    {aws.ToString(s3ObjectInfo.ContentEncoding)},
+				"Content-Language":    {aws.ToString(s3ObjectInfo.ContentLanguage)},
+				"Content-Disposition": {aws.ToString(s3ObjectInfo.ContentDisposition)},
+				"Cache-Control":       {aws.ToString(s3ObjectInfo.CacheControl)},
+				"Expires":             {aws.ToString(s3ObjectInfo.ExpiresString)},
+				"Content-Length":      {strconv.FormatInt(aws.ToInt64(s3ObjectInfo.ContentLength), 64)},
+				"Last-Modified":       {time.FormatHTTPDate(aws.ToTime(s3ObjectInfo.LastModified))},
+				"ETag":                {aws.ToString(s3ObjectInfo.ETag)},
+			},
+			Mode:     storage.RawPermissionsToMode(s3ObjectInfo.Metadata["x-amz-meta-file-permissions"]),
+			Metadata: s3ObjectInfo.Metadata,
 		}, nil
 	} else {
 		var oe *smithy.OperationError

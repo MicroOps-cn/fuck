@@ -29,6 +29,19 @@ type Client struct {
 	o      Options
 }
 
+func (c Client) ReadDir(name string) ([]fs.DirEntry, error) {
+	if strings.HasPrefix(name, "file://") {
+		name = strings.TrimPrefix(name, "file://")
+	} else if strings.HasPrefix(name, "local://") {
+		name = strings.TrimPrefix(name, "local://")
+	}
+	return fs.ReadDir(c.fs, name)
+}
+
+func (c Client) Open(name string) (fs.File, error) {
+	return c.GetObject(context.Background(), name)
+}
+
 func (c Client) MarshalJSON() ([]byte, error) {
 	return json.Marshal(c.o)
 }
@@ -42,7 +55,7 @@ func (c Client) GetObject(_ context.Context, objectPath string) (*storage.Object
 	} else if strings.HasPrefix(objectPath, "local://") {
 		objectPath = strings.TrimPrefix(objectPath, "local://")
 	}
-	f, err := os.Open(objectPath)
+	f, err := c.fs.Open(objectPath)
 	if err != nil {
 		return nil, err
 	}
@@ -51,15 +64,23 @@ func (c Client) GetObject(_ context.Context, objectPath string) (*storage.Object
 		return nil, err
 	}
 	return &storage.ObjectReader{
-		Headers: map[string][]string{
-			"Content-Length": {strconv.FormatInt(stat.Size(), 64)},
-			"Last-Modified":  {time.FormatDateTime(stat.ModTime())},
+		ReadCloser: f,
+		Object: storage.Object{
+			LastModified: stat.ModTime(),
+			Size:         stat.Size(),
+			StorageClass: c.Type(),
+			Metadata:     map[string]string{},
+			Mode:         stat.Mode(),
+			Headers: map[string][]string{
+				"Content-Length": {strconv.FormatInt(stat.Size(), 10)},
+				"Last-Modified":  {time.FormatDateTime(stat.ModTime())},
+			},
 		},
-		LastModified: stat.ModTime(),
-		Metadata:     map[string]string{},
-		ReadCloser:   f,
-		Size:         stat.Size(),
 	}, nil
+}
+
+type OpenFileFS interface {
+	OpenFile(name string, flag int, perm os.FileMode) (*os.File, error)
 }
 
 func (c Client) PutObject(ctx context.Context, objectPath string, obj io.Reader, headers http.Header, metadata map[string]string) error {
@@ -68,12 +89,15 @@ func (c Client) PutObject(ctx context.Context, objectPath string, obj io.Reader,
 	} else if strings.HasPrefix(objectPath, "local://") {
 		objectPath = strings.TrimPrefix(objectPath, "local://")
 	}
-	w, err := os.OpenFile(objectPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
+	if ofs, ok := c.fs.(OpenFileFS); ok {
+		w, err := ofs.OpenFile(objectPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(w, obj)
 		return err
 	}
-	_, err = io.Copy(w, obj)
-	return err
+	return fmt.Errorf("not support put object")
 }
 
 func (c Client) HeadObject(ctx context.Context, objectPath string) (obj *storage.Object, err error) {
@@ -91,6 +115,12 @@ func (c Client) HeadObject(ctx context.Context, objectPath string) (obj *storage
 		LastModified: stat.ModTime(),
 		Size:         stat.Size(),
 		StorageClass: c.Type(),
+		Metadata:     map[string]string{},
+		Mode:         stat.Mode(),
+		Headers: map[string][]string{
+			"Content-Length": {strconv.FormatInt(stat.Size(), 64)},
+			"Last-Modified":  {time.FormatDateTime(stat.ModTime())},
+		},
 	}, nil
 }
 

@@ -11,6 +11,7 @@ import (
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss/credentials"
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss/transport"
 	"io"
+	"io/fs"
 	"net/http"
 	"strings"
 )
@@ -36,6 +37,18 @@ type Client struct {
 	uploader *oss.Uploader
 	bucket   string
 	o        Options
+}
+
+func (c Client) ReadDir(name string) ([]fs.DirEntry, error) {
+	var entries []fs.DirEntry
+	err := c.ListObject(context.Background(), name, false, func(object storage.Object) {
+		entries = append(entries, object)
+	})
+	return entries, err
+}
+
+func (c Client) Open(name string) (fs.File, error) {
+	return c.GetObject(context.Background(), name)
 }
 
 func (c Client) Name() string {
@@ -68,11 +81,17 @@ func (c Client) GetObject(ctx context.Context, objectPath string) (*storage.Obje
 		return nil, err
 	}
 	return &storage.ObjectReader{
-		ReadCloser:   obj.Body,
-		Metadata:     obj.Metadata,
-		Headers:      obj.Headers,
-		LastModified: oss.ToTime(obj.LastModified),
-		Size:         obj.ContentLength,
+		ReadCloser: obj.Body,
+		Object: storage.Object{
+			Key:          key,
+			LastModified: oss.ToTime(obj.LastModified),
+			Size:         obj.ContentLength,
+			ETag:         strings.Trim(oss.ToString(obj.ETag), `"`),
+			StorageClass: obj.Headers.Get("x-oss-storage-class"),
+			Metadata:     obj.Metadata,
+			Headers:      obj.Headers,
+			Mode:         storage.RawPermissionsToMode(obj.Metadata["x-oss-storage-perms"]),
+		},
 	}, nil
 }
 
@@ -156,6 +175,9 @@ func (c Client) HeadObject(ctx context.Context, objectPath string) (obj *storage
 		Size:         meta.ContentLength,
 		ETag:         strings.Trim(oss.ToString(meta.ETag), `"`),
 		StorageClass: meta.Headers.Get("x-oss-storage-class"),
+		Metadata:     obj.Metadata,
+		Headers:      obj.Headers,
+		Mode:         storage.RawPermissionsToMode(obj.Metadata["x-oss-storage-perms"]),
 	}, nil
 }
 
