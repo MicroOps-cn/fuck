@@ -32,6 +32,7 @@ import (
 	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 
 	"github.com/MicroOps-cn/fuck/capacity"
+	errors "github.com/MicroOps-cn/fuck/errors"
 	g "github.com/MicroOps-cn/fuck/generator"
 	w "github.com/MicroOps-cn/fuck/wrapper"
 )
@@ -396,4 +397,23 @@ func (n *nopLogger) Log(keyvals ...interface{}) error {
 
 func NewNopLogger() log.Logger {
 	return &nopLogger{}
+}
+
+type teeLogger []log.Logger
+
+func (t teeLogger) Log(keyvals ...interface{}) error {
+	errs := errors.NewErrors(500, "")
+	for _, l := range t {
+		if err := l.Log(keyvals...); err != nil {
+			errs.Append(err)
+		}
+	}
+	if errs.HasError() {
+		return errs
+	}
+	return nil
+}
+
+func NewTeeLogger(lgs ...log.Logger) log.Logger {
+	return teeLogger(lgs)
 }
