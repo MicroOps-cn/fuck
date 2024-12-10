@@ -5,8 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/MicroOps-cn/fuck/clients/storage"
-	"github.com/MicroOps-cn/fuck/safe"
+	"io"
+	"io/fs"
+	http2 "net/http"
+	"os"
+	"strconv"
+	"strings"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -15,12 +20,9 @@ import (
 	"github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/time"
 	"github.com/spf13/afero"
-	"io"
-	"io/fs"
-	http2 "net/http"
-	"os"
-	"strconv"
-	"strings"
+
+	"github.com/MicroOps-cn/fuck/clients/storage"
+	"github.com/MicroOps-cn/fuck/safe"
 )
 
 type Options struct {

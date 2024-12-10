@@ -5,17 +5,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/MicroOps-cn/fuck/clients/storage"
-	"github.com/MicroOps-cn/fuck/log"
-	"github.com/aws/smithy-go/time"
-	"github.com/go-kit/log/level"
-	"github.com/spf13/afero"
 	"io"
 	"io/fs"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/aws/smithy-go/time"
+	"github.com/go-kit/log/level"
+	"github.com/spf13/afero"
+
+	"github.com/MicroOps-cn/fuck/clients/storage"
+	"github.com/MicroOps-cn/fuck/log"
 )
 
 type Options struct {

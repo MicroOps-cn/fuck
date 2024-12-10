@@ -2,13 +2,15 @@ package fs
 
 import (
 	"context"
-	"github.com/MicroOps-cn/fuck/clients/storage"
-	"github.com/spf13/afero"
-	"github.com/stretchr/testify/require"
 	"io/fs"
 	"os"
 	"sort"
 	"testing"
+
+	"github.com/spf13/afero"
+	"github.com/stretchr/testify/require"
+
+	"github.com/MicroOps-cn/fuck/clients/storage"
 )
 
 func touchFile(fs afero.Fs, path string) error {
