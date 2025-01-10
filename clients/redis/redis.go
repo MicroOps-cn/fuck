@@ -169,6 +169,14 @@ func (o *Options) UnmarshalJSON(data []byte) (err error) {
 	return nil
 }
 
+func NewClient(ctx context.Context, option *Options) (*Client, error) {
+	client, err := NewRedisClient(ctx, option)
+	if err != nil {
+		return nil, err
+	}
+	return &Client{client: client, options: option}, nil
+}
+
 func NewRedisClient(ctx context.Context, option *Options) (*redis.Client, error) {
 	var err error
 	logger := log.GetContextLogger(ctx)
@@ -308,6 +316,10 @@ func (r *Client) Redis(ctx context.Context) *redis.Client {
 		}
 	})
 	return session
+}
+
+func (r Client) Close() error {
+	return r.client.Close()
 }
 
 var ErrStopLoop = errors.New("stop")
