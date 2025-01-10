@@ -18,18 +18,15 @@ package gorm
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 	mysqldriver "gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -73,12 +70,18 @@ func (o *TLSOptions) UnmarshalJSON(data []byte) (err error) {
 	return mysql.RegisterTLSConfig(o.name, tlsConfig)
 }
 
+func (o *TLSOptions) Equal(o2 *TLSOptions) bool {
+	if (o == nil && o2 == nil) || (o.options == nil && o2.options == nil) {
+		return true
+	}
+	return o != nil && o2 != nil && reflect.DeepEqual(o.options, o2.options)
+}
+
 type MySQLOptions struct {
 	Host                  string          `json:"host,omitempty"`
 	Username              string          `json:"username,omitempty"`
 	Password              safe.String     `json:"password,omitempty"`
 	Schema                string          `json:"schema,omitempty"`
-	MaxIdle               int32           `json:"max_idle,omitempty"`
 	MaxIdleConnections    int32           `json:"max_idle_connections,omitempty"`
 	MaxOpenConnections    int32           `json:"max_open_connections,omitempty"`
 	MaxConnectionLifeTime *model.Duration `json:"max_connection_life_time,omitempty"`
@@ -87,6 +90,35 @@ type MySQLOptions struct {
 	TablePrefix           string          `json:"table_prefix,omitempty"`
 	SlowThreshold         *model.Duration `json:"slow_threshold,omitempty"`
 	TLSConfig             *TLSOptions     `json:"tls_config" yaml:"tls_config" mapstructure:"tls_config"`
+}
+
+func durationEqual(dur1, dur2 *model.Duration) bool {
+	if dur1 == nil && dur2 == nil {
+		return true
+	}
+	if dur1 != nil && dur2 != nil && dur1.String() == dur2.String() {
+		return true
+	}
+	return false
+}
+
+func (x *MySQLOptions) Equal(options MySQLOptions) bool {
+	return !(x.Host != options.Host ||
+		x.Username != options.Username ||
+		!x.Password.Equal(options.Password) ||
+		x.Schema != options.Schema ||
+		x.MaxIdleConnections != options.MaxIdleConnections ||
+		x.MaxOpenConnections != options.MaxOpenConnections ||
+		!durationEqual(x.MaxConnectionLifeTime, options.MaxConnectionLifeTime) ||
+		x.Charset != options.Charset ||
+		x.Collation != options.Collation ||
+		x.TablePrefix != options.TablePrefix ||
+		!durationEqual(x.SlowThreshold, options.SlowThreshold) ||
+		!x.TLSConfig.Equal(x.TLSConfig))
+}
+
+func (x *MySQLOptions) String() string {
+	return fmt.Sprintf("%s://%s@%s/%s", x.GetType(), x.Username, x.Host, x.Schema)
 }
 
 func (x *MySQLOptions) GetPeer() (string, int) {
@@ -122,6 +154,17 @@ func openMysqlConn(ctx context.Context, slowThreshold time.Duration, options *My
 	if err != nil {
 		return nil, err
 	}
+	if options.Charset == "" {
+		options.Charset = "utf8mb4"
+	}
+	if options.Collation == "" {
+		options.Collation = "utf8mb4_general_ci"
+	}
+
+	var tlsConfigName string
+	if options.TLSConfig != nil {
+		tlsConfigName = options.TLSConfig.name
+	}
 	db, err := gorm.Open(
 		mysqldriver.New(mysqldriver.Config{
 			DSNConfig: &mysql.Config{
@@ -135,11 +178,12 @@ func openMysqlConn(ctx context.Context, slowThreshold time.Duration, options *My
 				AllowNativePasswords: true,
 				CheckConnLiveness:    true,
 				ParseTime:            true,
+				TLSConfig:            tlsConfigName,
 			},
 		}), &gorm.Config{
 			NamingStrategy: schema.NamingStrategy{
 				TablePrefix:   options.TablePrefix,
-				SingularTable: true,
+				SingularTable: options.TablePrefix != "",
 			},
 			Logger:                                   NewLogAdapter(logger, slowThreshold, nil),
 			DisableForeignKeyConstraintWhenMigrating: true,
@@ -171,104 +215,14 @@ func openMysqlConn(ctx context.Context, slowThreshold time.Duration, options *My
 	return db, err
 }
 
-type MySQLStatsCollector struct {
-	db     *gorm.DB
-	logger kitlog.Logger
-	name   string
-	stats  map[string]prometheus.Gauge
-	mux    sync.Mutex
-	o      MySQLOptions
-}
-
-func (m *MySQLStatsCollector) Describe(descs chan<- *prometheus.Desc) {}
-
-func (m *MySQLStatsCollector) setStats(stats sql.DBStats) {
-	if m.stats == nil {
-		labels := map[string]string{"host": m.o.Host, "db_name": m.o.Schema}
-		m.stats = map[string]prometheus.Gauge{
-			"MaxOpenConnections": prometheus.NewGauge(prometheus.GaugeOpts{
-				Name:        "gorm_dbstats_max_open_connections",
-				Help:        "Maximum number of open connections to the database.",
-				ConstLabels: labels,
-			}),
-			"OpenConnections": prometheus.NewGauge(prometheus.GaugeOpts{
-				Name:        "gorm_dbstats_open_connections",
-				Help:        "The number of established connections both in use and idle.",
-				ConstLabels: labels,
-			}),
-			"InUse": prometheus.NewGauge(prometheus.GaugeOpts{
-				Name:        "gorm_dbstats_in_use",
-				Help:        "The number of connections currently in use.",
-				ConstLabels: labels,
-			}),
-			"Idle": prometheus.NewGauge(prometheus.GaugeOpts{
-				Name:        "gorm_dbstats_idle",
-				Help:        "The number of idle connections.",
-				ConstLabels: labels,
-			}),
-			"WaitCount": prometheus.NewGauge(prometheus.GaugeOpts{
-				Name:        "gorm_dbstats_wait_count",
-				Help:        "The total number of connections waited for.",
-				ConstLabels: labels,
-			}),
-			"WaitDuration": prometheus.NewGauge(prometheus.GaugeOpts{
-				Name:        "gorm_dbstats_wait_duration",
-				Help:        "The total time blocked waiting for a new connection.",
-				ConstLabels: labels,
-			}),
-			"MaxIdleClosed": prometheus.NewGauge(prometheus.GaugeOpts{
-				Name:        "gorm_dbstats_max_idle_closed",
-				Help:        "The total number of connections closed due to SetMaxIdleConns.",
-				ConstLabels: labels,
-			}),
-			"MaxLifetimeClosed": prometheus.NewGauge(prometheus.GaugeOpts{
-				Name:        "gorm_dbstats_max_lifetime_closed",
-				Help:        "The total number of connections closed due to SetConnMaxLifetime.",
-				ConstLabels: labels,
-			}),
-			"MaxIdleTimeClosed": prometheus.NewGauge(prometheus.GaugeOpts{
-				Name:        "gorm_dbstats_max_idletime_closed",
-				Help:        "The total number of connections closed due to SetConnMaxIdleTime.",
-				ConstLabels: labels,
-			}),
-		}
-	}
-	m.stats["MaxOpenConnections"].Set(float64(stats.MaxOpenConnections))
-	m.stats["OpenConnections"].Set(float64(stats.OpenConnections))
-	m.stats["InUse"].Set(float64(stats.InUse))
-	m.stats["Idle"].Set(float64(stats.Idle))
-	m.stats["WaitCount"].Set(float64(stats.WaitCount))
-	m.stats["WaitDuration"].Set(float64(stats.WaitDuration))
-	m.stats["MaxIdleClosed"].Set(float64(stats.MaxIdleClosed))
-	m.stats["MaxIdleTimeClosed"].Set(float64(stats.MaxIdleTimeClosed))
-	m.stats["MaxLifetimeClosed"].Set(float64(stats.MaxLifetimeClosed))
-}
-
-func (m *MySQLStatsCollector) Collect(metrics chan<- prometheus.Metric) {
-	m.mux.Lock()
-	defer m.mux.Unlock()
-	if sqlDB, err := m.db.DB(); err != nil {
-		level.Warn(m.logger).Log("msg", fmt.Errorf("failed to collect mysql stats: %s", m.name), "err", err)
-	} else {
-		m.setStats(sqlDB.Stats())
-		for _, stat := range m.stats {
-			metrics <- stat
-		}
-	}
-}
-
-func NewMySQLClient(ctx context.Context, options MySQLOptions) (clt *Client, err error) {
+func NewMySQLClient(ctx context.Context, name string, options MySQLOptions) (clt *Client, err error) {
 	clt = new(Client)
 	clt.options = &options
 	logger := logs.GetContextLogger(ctx)
 	if options.SlowThreshold != nil {
 		clt.slowThreshold = time.Duration(*options.SlowThreshold)
-		if err != nil {
-			level.Error(logger).Log("msg", fmt.Errorf("failed to connect to mysql server: [%s@%s]", options.Username, options.Host), "err", fmt.Errorf("`slow_threshold` option is invalid: %s", err))
-			return nil, err
-		}
 	}
-	clt.name = fmt.Sprintf("[MySQL]%s", options.Schema)
+	clt.name = name
 	level.Debug(logger).Log("msg", "connect to mysql server",
 		"host", options.Host, "username", options.Username,
 		"schema", options.Schema,
@@ -303,13 +257,13 @@ func NewMySQLClient(ctx context.Context, options MySQLOptions) (clt *Client, err
 		}
 		level.Debug(logger).Log("msg", "MySQL connect closed")
 	})
-	prometheus.MustRegister(&MySQLStatsCollector{db: db, logger: logger, o: options})
 	level.Info(logger).Log("msg", "connected to mysql server",
 		"host", options.Host, "username", options.Username,
 		"schema", options.Schema,
 		"charset", options.Charset,
 		"collation", options.Collation)
 	clt.database = db
+	clt.statsCollector = collector.Register(clt)
 	return clt, nil
 }
 
@@ -358,7 +312,7 @@ func (c *MySQLClient) UnmarshalJSON(data []byte) (err error) {
 	if err = json.Unmarshal(data, c.options); err != nil {
 		return err
 	}
-	if c.Client, err = NewMySQLClient(context.Background(), *c.options); err != nil {
+	if c.Client, err = NewMySQLClient(context.Background(), "", *c.options); err != nil {
 		return err
 	}
 	return

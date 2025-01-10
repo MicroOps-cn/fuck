@@ -22,8 +22,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
-
 	gosqlite "github.com/glebarez/go-sqlite"
 	"github.com/glebarez/sqlite"
 	"github.com/go-kit/log/level"
@@ -44,8 +42,12 @@ type SQLiteOptions struct {
 	XXX_sizecache        int32           `json:"-"` //nolint:revive
 }
 
+func (o *SQLiteOptions) String() string {
+	return o.GetConnectionString()
+}
+
 func (o SQLiteOptions) GetPeer() (string, int) {
-	return "", 0
+	return o.Path, 0
 }
 
 func (o SQLiteOptions) GetConnectionString() string {
@@ -75,15 +77,15 @@ func init() {
 	})
 }
 
-func NewSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *SQLiteClient, err error) {
-	client, err := NewGormSQLiteClient(ctx, options)
+func NewSQLiteClient(ctx context.Context, name string, options *SQLiteOptions) (clt *SQLiteClient, err error) {
+	client, err := NewGormSQLiteClient(ctx, name, options)
 	if err != nil {
 		return nil, err
 	}
 	return &SQLiteClient{Client: client, options: options}, nil
 }
 
-func NewGormSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *Client, err error) {
+func NewGormSQLiteClient(ctx context.Context, name string, options *SQLiteOptions) (clt *Client, err error) {
 	clt = new(Client)
 	clt.options = options
 	logger := log.GetContextLogger(ctx)
@@ -94,7 +96,7 @@ func NewGormSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *Clie
 			return nil, err
 		}
 	}
-	clt.name = fmt.Sprintf("[SQLite]%s", filepath.Base(options.Path))
+	clt.name = name
 
 	level.Debug(logger).Log("msg", "connect to sqlite", "dsn", options.Path)
 	db, err := gorm.Open(sqlite.Open(options.Path), &gorm.Config{
@@ -119,6 +121,7 @@ func NewGormSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *Clie
 		level.Debug(logger).Log("msg", "Sqlite connect closed")
 	})
 	clt.database = db
+	clt.statsCollector = collector.Register(clt)
 	return clt, nil
 }
 
@@ -142,11 +145,20 @@ func (c *SQLiteClient) UnmarshalJSON(data []byte) (err error) {
 	if c.options == nil {
 		c.options = NewSQLiteOptions()
 	}
+
 	if err = json.Unmarshal(data, c.options); err != nil {
 		return err
 	}
-	if c.Client, err = NewGormSQLiteClient(context.Background(), c.options); err != nil {
+	if c.Client, err = NewGormSQLiteClient(context.Background(), "", c.options); err != nil {
 		return err
 	}
 	return
+}
+
+func (c SQLiteClient) Close() error {
+	if sqlDB, err := c.database.DB(); err == nil {
+		return sqlDB.Close()
+	} else {
+		return err
+	}
 }

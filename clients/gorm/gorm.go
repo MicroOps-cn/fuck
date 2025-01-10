@@ -37,19 +37,52 @@ type DBOptions interface {
 	GetDBName() string
 	GetUsername() string
 	GetType() string
+	String() string
 }
 
 type SessionClient interface {
 	Session(ctx context.Context) *gorm.DB
+	Close() error
+	SetName(name string)
+	Name() string
 }
 
 type Client struct {
-	name          string
-	database      *gorm.DB
-	slowThreshold time.Duration
-	tracer        trace.Tracer
-	tracerInitial sync.Once
-	options       DBOptions
+	name           string
+	database       *gorm.DB
+	slowThreshold  time.Duration
+	tracer         trace.Tracer
+	tracerInitial  sync.Once
+	options        DBOptions
+	statsCollector string
+}
+
+func (c *Client) Name() string {
+	return c.name
+}
+
+func (c *Client) SetName(name string) {
+	c.name = name
+}
+
+func (c *Client) Close() error {
+	if c == nil {
+		return nil
+	}
+	if len(c.statsCollector) != 0 {
+		collector.Unregister(c.statsCollector)
+	}
+	logger := logs.GetDefaultLogger()
+	if sqlDB, err := c.database.DB(); err == nil {
+		if err = sqlDB.Close(); err != nil {
+			level.Warn(logger).Log("msg", fmt.Errorf("failed to close connect: [%s]", c.options.String()), "err", err)
+		}
+		level.Debug(logger).Log("msg", "MySQL connect closed")
+		return err
+	} else {
+		level.Warn(logger).Log("msg", fmt.Errorf("failed to close connect: [%s]", c.options.String()), "err", err)
+	}
+	return nil
 }
 
 type Processor interface {
