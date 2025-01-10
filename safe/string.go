@@ -170,6 +170,19 @@ func (e String) Value() (driver.Value, error) {
 	return e.value, nil
 }
 
+func (e *String) Equal(n String) bool {
+	plain, err := e.UnsafeString()
+	if err != nil {
+		return false
+	}
+	plain2, err := n.UnsafeString()
+	if err != nil {
+		return false
+	}
+	return plain == plain2
+
+}
+
 func NewEncryptedString(plain, secret string) *String {
 	if !strings.HasPrefix(plain, ciphertextPrefix) {
 		if len(secret) > 0 {
