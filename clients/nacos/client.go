@@ -121,15 +121,13 @@ func (c *watchdog) runItemWatch(ctx context.Context, dataId string, group string
 	item, data := c.queryItem(ctx, dataId, group)
 	if item != nil && data != nil {
 		if item.lastHash == nil {
-			item.lastHash = new(string)
-			return data
-		} else if *item.lastHash == data.ContentMd5 {
-			return data
-		}
-		item.lastHash = &data.ContentMd5
-		if item.onChanges != nil {
-			for _, onChangeFunc := range item.onChanges {
-				onChangeFunc(data)
+			item.lastHash = &data.ContentMd5
+		} else if *item.lastHash != data.ContentMd5 {
+			item.lastHash = &data.ContentMd5
+			if item.onChanges != nil {
+				for _, onChangeFunc := range item.onChanges {
+					onChangeFunc(data)
+				}
 			}
 		}
 	}
