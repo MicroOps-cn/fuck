@@ -251,6 +251,32 @@ func ParseWithClaims(tokenString string, claims jwt.Claims, issuerFunc func(toke
 
 type StandardClaims jwt.RegisteredClaims
 
+func (c StandardClaims) GetExpirationTime() (*jwt.NumericDate, error) {
+	return (jwt.RegisteredClaims)(c).GetExpirationTime()
+}
+
+func (c StandardClaims) GetIssuedAt() (*jwt.NumericDate, error) {
+	return (jwt.RegisteredClaims)(c).GetIssuedAt()
+}
+
+func (c StandardClaims) GetNotBefore() (*jwt.NumericDate, error) {
+	return (jwt.RegisteredClaims)(c).GetNotBefore()
+}
+
+func (c StandardClaims) GetIssuer() (string, error) {
+	return (jwt.RegisteredClaims)(c).GetIssuer()
+}
+
+func (c StandardClaims) GetSubject() (string, error) {
+	return (jwt.RegisteredClaims)(c).GetSubject()
+}
+
+func (c StandardClaims) GetAudience() (jwt.ClaimStrings, error) {
+	return (jwt.RegisteredClaims)(c).GetAudience()
+}
+
+var _ jwt.Claims = (*StandardClaims)(nil)
+
 func (c StandardClaims) Valid() error {
 	return jwt.NewValidator().Validate(jwt.RegisteredClaims(c))
 }
