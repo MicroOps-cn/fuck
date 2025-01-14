@@ -25,27 +25,27 @@ type IConfigClient interface {
 	// dataId  require
 	// group   require
 	// tenant ==>nacos.namespace optional
-	GetConfig(param ConfigParam) (string, error)
+	GetConfig(ctx context.Context, param ConfigParam) (string, error)
 
 	// ListenConfig use to listen a config from nacos server
 	// dataId  require
 	// group   require
 	// onChange require
 	// tenant ==>nacos.namespace optional
-	ListenConfig(param ConfigParam) (listenId string, data *ConfigQueryResponse)
+	ListenConfig(ctx context.Context, param ConfigParam) (listenId string, data *ConfigQueryResponse)
 
 	// PublishConfig use to publish config to nacos server
 	// dataId  require
 	// group   require
 	// content require
 	// tenant ==>nacos.namespace optional
-	PublishConfig(param ConfigParam) (bool, error)
+	PublishConfig(ctx context.Context, param ConfigParam) (bool, error)
 
 	// DeleteConfig use to delete config
 	// dataId  require
 	// group   require
 	// tenant ==>nacos.namespace optional
-	DeleteConfig(param ConfigParam) (bool, error)
+	DeleteConfig(ctx context.Context, param ConfigParam) (bool, error)
 
 	// SearchConfig use to search nacos config
 	// search  require search=accurate--精确搜索  search=blur--模糊搜索
@@ -54,9 +54,9 @@ type IConfigClient interface {
 	// tenant ==>nacos.namespace optional
 	// pageNo  option,default is 1
 	// pageSize option,default is 10
-	SearchConfig(param SearchConfigParam) (*ConfigPage, error)
+	SearchConfig(ctx context.Context, param SearchConfigParam) (*ConfigPage, error)
 
-	QueryConfig(param ConfigParam) (content *ConfigQueryResponse, err error)
+	QueryConfig(ctx context.Context, param ConfigParam) (content *ConfigQueryResponse, err error)
 }
 
 type watchItem struct {
@@ -135,7 +135,7 @@ func (c *watchdog) runItemWatch(ctx context.Context, dataId string, group string
 }
 
 func (c *watchdog) queryItem(ctx context.Context, dataId string, group string) (*watchItem, *ConfigQueryResponse) {
-	data, err := c.client.QueryConfig(ConfigParam{DataId: dataId, Group: group})
+	data, err := c.client.QueryConfig(ctx, ConfigParam{DataId: dataId, Group: group})
 	c.locker.RLock()
 	defer c.locker.RUnlock()
 	for idx, target := range c.targets {
@@ -202,8 +202,8 @@ type configClient struct {
 	watchdog      watchdog
 }
 
-func (c *configClient) ListenConfig(param ConfigParam) (listenId string, data *ConfigQueryResponse) {
-	ctx, _ := logs.NewContextLogger(context.Background())
+func (c *configClient) ListenConfig(ctx context.Context, param ConfigParam) (listenId string, data *ConfigQueryResponse) {
+	ctx, _ = logs.NewContextLogger(ctx)
 	listenId = c.watchdog.Register(param.DataId, param.Group, param.OnChange)
 	c.watchdog.once.Do(func() {
 		c.watchdog.client = c
@@ -219,8 +219,8 @@ type GetConfigResponse struct {
 	Data    string `json:"data"`
 }
 
-func (c *configClient) GetConfig(param ConfigParam) (string, error) {
-	content, err := c.QueryConfig(param)
+func (c *configClient) GetConfig(ctx context.Context, param ConfigParam) (string, error) {
+	content, err := c.QueryConfig(ctx, param)
 	if err != nil {
 		return "", err
 	}
@@ -235,9 +235,9 @@ type PublishConfigResponse struct {
 	Data      bool      `json:"data"`
 }
 
-func (c *configClient) doRequest(method string, api string, data url.Values) (*http.Response, error) {
+func (c *configClient) doRequest(ctx context.Context, method string, api string, data url.Values) (*http.Response, error) {
 	if time.Until(c.tokenExpireAt) < time.Minute {
-		if err := c.Authorization(); err != nil {
+		if err := c.Authorization(ctx); err != nil {
 			return nil, err
 		}
 	}
@@ -270,8 +270,8 @@ func (c *configClient) doRequest(method string, api string, data url.Values) (*h
 	return c.client.Do(r)
 }
 
-func (c configClient) PublishConfig(param ConfigParam) (bool, error) {
-	resp, err := c.doRequest("POST", "/v2/cs/config", url.Values{
+func (c configClient) PublishConfig(ctx context.Context, param ConfigParam) (bool, error) {
+	resp, err := c.doRequest(ctx, "POST", "/v2/cs/config", url.Values{
 		"namespaceId": {c.cfg.NamespaceId},
 		"tenant":      {c.cfg.NamespaceId},
 		"group":       {param.Group},
@@ -323,8 +323,8 @@ type DeleteConfigResponse struct {
 	Data      bool      `json:"data"`
 }
 
-func (c configClient) DeleteConfig(param ConfigParam) (bool, error) {
-	resp, err := c.doRequest("DELETE", "/v2/cs/config", url.Values{
+func (c configClient) DeleteConfig(ctx context.Context, param ConfigParam) (bool, error) {
+	resp, err := c.doRequest(ctx, "DELETE", "/v2/cs/config", url.Values{
 		"namespaceId": {c.cfg.NamespaceId},
 		"tenant":      {c.cfg.NamespaceId},
 		"group":       {param.Group},
@@ -359,7 +359,7 @@ func (c configClient) DeleteConfig(param ConfigParam) (bool, error) {
 	return respBody.Data, nil
 }
 
-func (c configClient) SearchConfig(param SearchConfigParam) (*ConfigPage, error) {
+func (c configClient) SearchConfig(ctx context.Context, param SearchConfigParam) (*ConfigPage, error) {
 	//TODO implement me
 	panic("implement me")
 }
@@ -373,8 +373,8 @@ type ConfigQueryResponse struct {
 	ConfigType string `json:"-"`
 }
 
-func (c configClient) QueryConfig(param ConfigParam) (content *ConfigQueryResponse, err error) {
-	resp, err := c.doRequest("GET", "/v2/cs/config", url.Values{
+func (c configClient) QueryConfig(ctx context.Context, param ConfigParam) (content *ConfigQueryResponse, err error) {
+	resp, err := c.doRequest(ctx, "GET", "/v2/cs/config", url.Values{
 		"namespaceId": {c.cfg.NamespaceId},
 		"tenant":      {c.cfg.NamespaceId},
 		"group":       {param.Group},
@@ -433,12 +433,13 @@ func (c *configClient) url(api string) string {
 	return fmt.Sprintf("%s://%s:%d%s", c.cfg.Schema, c.cfg.ServerAddr, c.cfg.ServerPort, path.Join(contextPath, api))
 }
 
-func (c *configClient) Authorization() (err error) {
+func (c *configClient) Authorization(ctx context.Context) (err error) {
+	logger := logs.GetContextLogger(ctx)
+	level.Info(logger).Log("msg", "Starting to nacos authenticate", "url", c.url("v1/auth/login"), "username", c.cfg.Username)
 	resp, err := c.client.PostForm(c.url("v1/auth/login"), url.Values{"username": {c.cfg.Username}, "password": {c.cfg.Password}})
 	if err != nil {
-		return err
+		return fmt.Errorf("authentication failed: %s", err)
 	}
-
 	defer resp.Body.Close()
 	var respBody LoginResponse
 	buf, err := buffer.NewPreReader(resp.Body, 1024)
@@ -465,10 +466,10 @@ func (c *configClient) Authorization() (err error) {
 		c.tokenExpireAt = time.Now().Add(time.Duration(respBody.TokenTTL) * time.Second)
 		return nil
 	}
-	return fmt.Errorf("authentication failed, invalid response Content-Type: Content-Type=%s, body=%s, status_code=%d", resp.Header.Get("Content-Type"), buf.Buffer(), resp.StatusCode)
+	return fmt.Errorf("authentication failed, invalid response Content-Type: Content-Type=%s, body=%s, status_code=%d, username=%s, namespaceId==%s", resp.Header.Get("Content-Type"), buf.Buffer(), resp.StatusCode, c.cfg.Username, c.cfg.NamespaceId)
 }
 
-func NewConfigClient(opts ...ClientOption) (IConfigClient, error) {
+func NewConfigClient(ctx context.Context, opts ...ClientOption) (IConfigClient, error) {
 	cfg := ClientConfig{
 		Schema:      "http",
 		ContextPath: "/nacos",
@@ -500,7 +501,7 @@ func NewConfigClient(opts ...ClientOption) (IConfigClient, error) {
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}}
-	if err := cc.Authorization(); err != nil {
+	if err := cc.Authorization(ctx); err != nil {
 		return nil, err
 	}
 	return cc, nil

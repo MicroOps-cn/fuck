@@ -1,6 +1,7 @@
 package nacos
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"os"
@@ -37,7 +38,7 @@ func newNacosClientFromModel(data NacosModel) (IConfigClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	client, err := NewConfigClient(
+	client, err := NewConfigClient(context.Background(),
 		WithUsername(data.Username),
 		WithPassword(data.Password),
 		WithNamespaceId(data.Namespace),
@@ -53,16 +54,16 @@ func newNacosClientFromModel(data NacosModel) (IConfigClient, error) {
 
 	testDataId := fmt.Sprintf("test-%s.txt", uuid.Must(uuid.NewV4()))
 
-	ok, err := client.PublishConfig(ConfigParam{DataId: testDataId, Group: "CONNECT_TEST_GROUP", Type: "text", Content: "TestContent"})
+	ok, err := client.PublishConfig(context.Background(), ConfigParam{DataId: testDataId, Group: "CONNECT_TEST_GROUP", Type: "text", Content: "TestContent"})
 	if err != nil {
 		return nil, err
 	} else if !ok {
 		return nil, fmt.Errorf("failed to publish test config, ret!=ok")
 	}
 	defer func() {
-		_, _ = client.DeleteConfig(ConfigParam{DataId: testDataId, Group: "CONNECT_TEST_GROUP"})
+		_, _ = client.DeleteConfig(context.Background(), ConfigParam{DataId: testDataId, Group: "CONNECT_TEST_GROUP"})
 	}()
-	testContent, err := client.GetConfig(ConfigParam{DataId: testDataId, Group: "CONNECT_TEST_GROUP"})
+	testContent, err := client.GetConfig(context.Background(), ConfigParam{DataId: testDataId, Group: "CONNECT_TEST_GROUP"})
 	if err != nil {
 		return nil, err
 	}
