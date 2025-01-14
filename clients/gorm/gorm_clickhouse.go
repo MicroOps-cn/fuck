@@ -108,7 +108,8 @@ func openClickhouseConn(ctx context.Context, slowThreshold time.Duration, option
 
 	db, err := gorm.Open(
 		clickhousedriver.New(clickhousedriver.Config{
-			DSN: dsn,
+			DSN:                dsn,
+			DefaultCompression: "LZ4",
 		}), &gorm.Config{
 			NamingStrategy: schema.NamingStrategy{
 				TablePrefix:   options.TablePrefix,
