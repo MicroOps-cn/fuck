@@ -29,7 +29,7 @@ import (
 	"fmt"
 
 	w "github.com/MicroOps-cn/fuck/wrapper"
-	"github.com/golang-jwt/jwt/v4"
+	jwt "github.com/golang-jwt/jwt/v5"
 )
 
 type JWTIssuer interface {
@@ -249,10 +249,10 @@ func ParseWithClaims(tokenString string, claims jwt.Claims, issuerFunc func(toke
 	return issuer.ParseWithClaims(tokenString, claims)
 }
 
-type StandardClaims jwt.StandardClaims
+type StandardClaims jwt.RegisteredClaims
 
 func (c StandardClaims) Valid() error {
-	return jwt.StandardClaims(c).Valid()
+	return jwt.NewValidator().Validate(jwt.RegisteredClaims(c))
 }
 
 func (c *StandardClaims) SetIssuer(ctx context.Context, issuer string) {

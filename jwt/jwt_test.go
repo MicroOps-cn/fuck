@@ -25,7 +25,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -67,8 +67,32 @@ func generateRandomECDSAKeyPair(t *testing.T) ([]byte, []byte) {
 
 type MapClaims jwt.MapClaims
 
+func (m MapClaims) GetExpirationTime() (*jwt.NumericDate, error) {
+	return jwt.MapClaims(m).GetExpirationTime()
+}
+
+func (m MapClaims) GetIssuedAt() (*jwt.NumericDate, error) {
+	return jwt.MapClaims(m).GetIssuedAt()
+}
+
+func (m MapClaims) GetNotBefore() (*jwt.NumericDate, error) {
+	return jwt.MapClaims(m).GetNotBefore()
+}
+
+func (m MapClaims) GetIssuer() (string, error) {
+	return jwt.MapClaims(m).GetIssuer()
+}
+
+func (m MapClaims) GetSubject() (string, error) {
+	return jwt.MapClaims(m).GetSubject()
+}
+
+func (m MapClaims) GetAudience() (jwt.ClaimStrings, error) {
+	return jwt.MapClaims(m).GetAudience()
+}
+
 func (m MapClaims) Valid() error {
-	return jwt.MapClaims(m).Valid()
+	return jwt.NewValidator().Validate(jwt.MapClaims(m))
 }
 
 func (m *MapClaims) SetIssuer(ctx context.Context, s string) {
