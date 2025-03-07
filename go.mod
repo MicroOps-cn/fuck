@@ -16,7 +16,7 @@ require (
 	github.com/glebarez/sqlite v1.8.0
 	github.com/go-kit/log v0.2.1
 	github.com/go-redis/redis v6.15.9+incompatible
-	github.com/go-sql-driver/mysql v1.7.1
+	github.com/go-sql-driver/mysql v1.9.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
@@ -45,7 +45,7 @@ require (
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/clickhouse v0.6.1
-	gorm.io/driver/mysql v1.5.1
+	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.25.10
 )
 

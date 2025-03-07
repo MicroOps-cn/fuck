@@ -90,6 +90,7 @@ type MySQLOptions struct {
 	TablePrefix           string          `json:"table_prefix,omitempty" yaml:"table_prefix" mapstructure:"table_prefix"`
 	SlowThreshold         *model.Duration `json:"slow_threshold,omitempty" yaml:"slow_threshold" mapstructure:"slow_threshold"`
 	TLSConfig             *TLSOptions     `json:"tls_config" yaml:"tls_config" mapstructure:"tls_config"`
+	EnableCompression     bool            `json:"enable_compression,omitempty" yaml:"enable_compression" mapstructure:"enable_compression"`
 }
 
 func durationEqual(dur1, dur2 *model.Duration) bool {
@@ -168,21 +169,6 @@ func openMysqlConn(ctx context.Context, slowThreshold time.Duration, options *My
 	if options.TLSConfig != nil {
 		tlsConfigName = options.TLSConfig.name
 	}
-	db, err := gorm.Open(
-		mysqldriver.New(mysqldriver.Config{
-			DSNConfig: &mysql.Config{
-				User:                 options.Username,
-				Passwd:               passwd,
-				Net:                  "tcp",
-				Addr:                 options.Host,
-				DBName:               options.Schema,
-				Params:               map[string]string{"charset": options.Charset},
-				Collation:            options.Collation,
-				AllowNativePasswords: true,
-				CheckConnLiveness:    true,
-				ParseTime:            true,
-				TLSConfig:            tlsConfigName,
-			},
 	cfg := &mysql.Config{
 		User:                 options.Username,
 		Passwd:               passwd,
@@ -195,6 +181,9 @@ func openMysqlConn(ctx context.Context, slowThreshold time.Duration, options *My
 		CheckConnLiveness:    true,
 		ParseTime:            true,
 		TLSConfig:            tlsConfigName,
+	}
+	if options.EnableCompression {
+		cfg.Apply(mysql.EnableCompression(true))
 	}
 	db, err := gorm.Open(
 		mysqldriver.New(mysqldriver.Config{
@@ -246,6 +235,7 @@ func NewMySQLClient(ctx context.Context, name string, options MySQLOptions) (clt
 		"host", options.Host, "username", options.Username,
 		"schema", options.Schema,
 		"charset", options.Charset,
+		"enableCompression", options.EnableCompression,
 		"collation", options.Collation)
 
 	db, err := openMysqlConn(ctx, clt.slowThreshold, &options, true)
