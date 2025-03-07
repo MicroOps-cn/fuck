@@ -39,18 +39,18 @@ import (
 )
 
 type ClickhouseOptions struct {
-	Host                  string          `json:"host,omitempty"`
-	Username              string          `json:"username,omitempty"`
-	Password              safe.String     `json:"password,omitempty"`
-	Schema                string          `json:"schema,omitempty"`
-	MaxIdleConnections    int32           `json:"max_idle_connections,omitempty"`
-	MaxOpenConnections    int32           `json:"max_open_connections,omitempty"`
-	MaxConnectionLifeTime *model.Duration `json:"max_connection_life_time,omitempty"`
-	TablePrefix           string          `json:"table_prefix,omitempty"`
-	SlowThreshold         *model.Duration `json:"slow_threshold,omitempty"`
-	DialTimeout           *model.Duration `json:"dial_timeout,omitempty"`
-	ReadTimeout           *model.Duration `json:"read_timeout,omitempty"`
-	MaxExecutionTime      *model.Duration `json:"max_execution_time,omitempty"`
+	Host                  string          `json:"host,omitempty" yaml:"host" mapstructure:"host"`
+	Username              string          `json:"username,omitempty" yaml:"username" mapstructure:"username"`
+	Password              safe.String     `json:"password,omitempty" yaml:"password" mapstructure:"password"`
+	Schema                string          `json:"schema,omitempty" yaml:"schema" mapstructure:"schema"`
+	MaxIdleConnections    int32           `json:"max_idle_connections,omitempty" yaml:"max_idle_connections" mapstructure:"max_idle_connections"`
+	MaxOpenConnections    int32           `json:"max_open_connections,omitempty" yaml:"max_open_connections" mapstructure:"max_open_connections"`
+	MaxConnectionLifeTime *model.Duration `json:"max_connection_life_time,omitempty" yaml:"max_connection_life_time" mapstructure:"max_connection_life_time"`
+	TablePrefix           string          `json:"table_prefix,omitempty" yaml:"table_prefix" mapstructure:"table_prefix"`
+	SlowThreshold         *model.Duration `json:"slow_threshold,omitempty" yaml:"slow_threshold" mapstructure:"slow_threshold"`
+	DialTimeout           *model.Duration `json:"dial_timeout,omitempty" yaml:"dial_timeout" mapstructure:"dial_timeout"`
+	ReadTimeout           *model.Duration `json:"read_timeout,omitempty" yaml:"read_timeout" mapstructure:"read_timeout"`
+	MaxExecutionTime      *model.Duration `json:"max_execution_time,omitempty" yaml:"max_execution_time" mapstructure:"max_execution_time"`
 }
 
 func (x *ClickhouseOptions) Equal(options ClickhouseOptions) bool {

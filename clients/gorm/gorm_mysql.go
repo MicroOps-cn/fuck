@@ -82,13 +82,13 @@ type MySQLOptions struct {
 	Username              string          `json:"username,omitempty"`
 	Password              safe.String     `json:"password,omitempty"`
 	Schema                string          `json:"schema,omitempty"`
-	MaxIdleConnections    int32           `json:"max_idle_connections,omitempty"`
-	MaxOpenConnections    int32           `json:"max_open_connections,omitempty"`
-	MaxConnectionLifeTime *model.Duration `json:"max_connection_life_time,omitempty"`
+	MaxIdleConnections    int32           `json:"max_idle_connections,omitempty" yaml:"max_idle_connections" mapstructure:"max_idle_connections"`
+	MaxOpenConnections    int32           `json:"max_open_connections,omitempty" yaml:"max_open_connections" mapstructure:"max_open_connections"`
+	MaxConnectionLifeTime *model.Duration `json:"max_connection_life_time,omitempty" yaml:"max_connection_life_time" mapstructure:"max_connection_life_time"`
 	Charset               string          `json:"charset,omitempty"`
 	Collation             string          `json:"collation,omitempty"`
-	TablePrefix           string          `json:"table_prefix,omitempty"`
-	SlowThreshold         *model.Duration `json:"slow_threshold,omitempty"`
+	TablePrefix           string          `json:"table_prefix,omitempty" yaml:"table_prefix" mapstructure:"table_prefix"`
+	SlowThreshold         *model.Duration `json:"slow_threshold,omitempty" yaml:"slow_threshold" mapstructure:"slow_threshold"`
 	TLSConfig             *TLSOptions     `json:"tls_config" yaml:"tls_config" mapstructure:"tls_config"`
 }
 
@@ -160,6 +160,9 @@ func openMysqlConn(ctx context.Context, slowThreshold time.Duration, options *My
 	if options.Collation == "" {
 		options.Collation = "utf8mb4_general_ci"
 	}
+	if options.MaxOpenConnections == 0 {
+		options.MaxOpenConnections = 100
+	}
 
 	var tlsConfigName string
 	if options.TLSConfig != nil {
@@ -180,6 +183,22 @@ func openMysqlConn(ctx context.Context, slowThreshold time.Duration, options *My
 				ParseTime:            true,
 				TLSConfig:            tlsConfigName,
 			},
+	cfg := &mysql.Config{
+		User:                 options.Username,
+		Passwd:               passwd,
+		Net:                  "tcp",
+		Addr:                 options.Host,
+		DBName:               options.Schema,
+		Params:               map[string]string{"charset": options.Charset},
+		Collation:            options.Collation,
+		AllowNativePasswords: true,
+		CheckConnLiveness:    true,
+		ParseTime:            true,
+		TLSConfig:            tlsConfigName,
+	}
+	db, err := gorm.Open(
+		mysqldriver.New(mysqldriver.Config{
+			DSNConfig: cfg,
 		}), &gorm.Config{
 			NamingStrategy: schema.NamingStrategy{
 				TablePrefix:   options.TablePrefix,
